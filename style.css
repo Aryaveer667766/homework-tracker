@@ -181,3 +181,29 @@ button.delete-btn {
   color: var(--text);
   box-shadow: var(--shadow);
 }
+#searchInput {
+  width: 100%;
+  padding: 10px 14px;
+  font-size: 16px;
+  margin: 16px 0;
+  border-radius: 10px;
+  border: 1px solid #ccc;
+  background: var(--card, #fff);
+  color: var(--text, #111);
+  box-shadow: var(--shadow, 0 2px 5px rgba(0,0,0,0.1));
+}
+
+/* Improve contrast in light mode */
+body:not(.dark) input[type="text"],
+body:not(.dark) input[type="date"] {
+  background: #fff;
+  color: #111;
+  border: 1px solid #aaa;
+}
+
+/* Optional fix for input in dark */
+body.dark input {
+  background: #1e1e1e;
+  color: #eee;
+}
+
