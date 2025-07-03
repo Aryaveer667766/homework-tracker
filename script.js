@@ -1,3 +1,4 @@
+// script.js
 const subjects = ['Maths', 'Chemistry', 'Physics'];
 const container = document.getElementById('subjectsContainer');
 const toastContainer = document.getElementById('toast-container');
@@ -67,7 +68,7 @@ function createSubjectCard(subject) {
 
     data[subject][chapter].forEach((item, i) => {
       const li = document.createElement('li');
-      li.innerHTML = item.text;
+      li.innerHTML = `${item.text}<br>${item.date ? `<small>📅 ${item.date}</small>` : ''}`;
       if (item.image) {
         const img = document.createElement('img');
         img.src = item.image;
@@ -94,21 +95,32 @@ function createSubjectCard(subject) {
     const hwInput = document.createElement('input');
     hwInput.placeholder = 'Homework text';
 
+    const dateInput = document.createElement('input');
+    dateInput.type = 'date';
+    dateInput.className = 'date-picker';
+
     const hwImgInput = document.createElement('input');
     hwImgInput.type = 'file';
     hwImgInput.accept = 'image/*';
+    hwImgInput.style.display = 'none';
+
+    const imageLabel = document.createElement('label');
+    imageLabel.className = 'upload-btn';
+    imageLabel.innerText = '📷 Upload Image';
+    imageLabel.appendChild(hwImgInput);
 
     const hwBtn = document.createElement('button');
     hwBtn.innerText = 'Add Homework';
     hwBtn.onclick = () => {
       const text = hwInput.value.trim();
+      const date = dateInput.value;
       if (!text) return;
 
       const reader = new FileReader();
       const imgFile = hwImgInput.files[0];
 
       const pushAndRender = (imgData = null) => {
-        data[subject][chapter].push({ text, image: imgData });
+        data[subject][chapter].push({ text, image: imgData, date });
         saveData();
         render();
         showToast(`✅ Homework added`);
@@ -123,10 +135,12 @@ function createSubjectCard(subject) {
 
       hwInput.value = '';
       hwImgInput.value = '';
+      dateInput.value = '';
     };
 
     chDiv.appendChild(hwInput);
-    chDiv.appendChild(hwImgInput);
+    chDiv.appendChild(dateInput);
+    chDiv.appendChild(imageLabel);
     chDiv.appendChild(hwBtn);
 
     card.appendChild(chDiv);
