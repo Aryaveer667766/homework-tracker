@@ -2,18 +2,15 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Homework</title>
-  <link rel="manifest" href="/manifest.json" />
-  <meta name="theme-color" content="#3b82f6" />
+  <meta name="theme-color" content="#121212"/>
+  <link rel="manifest" href="/manifest.json"/>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <header>
-    <h1>📘 Homework</h1>
-    <div>
-      <button id="darkToggle">🌗</button>
-    </div>
+    <h1>📘 Homework </h1>
   </header>
 
   <nav class="tabs">
@@ -28,11 +25,42 @@
   <div id="toast-container"></div>
 
   <script type="module" src="script.js"></script>
+
+  <!-- Firebase Messaging Scripts -->
+  <script src="https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/11.10.0/firebase-messaging.js"></script>
   <script>
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/service-worker.js')
-        .then(() => console.log('✅ Service Worker Registered'));
-    }
+    const firebaseConfig = {
+      apiKey: "AIzaSyBRwSrbSvrFAW5dTyQN0BoRHS3_6iLrV_E",
+      authDomain: "homeworkbrothers-12345.firebaseapp.com",
+      projectId: "homeworkbrothers-12345",
+      storageBucket: "homeworkbrothers-12345.appspot.com",
+      messagingSenderId: "77683184454",
+      appId: "1:77683184454:web:9b0bc1e8e5028943a3cb47",
+      measurementId: "G-21XLQGRZJ0"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const messaging = firebase.messaging();
+
+    navigator.serviceWorker
+      .register('/firebase-messaging-sw.js')
+      .then(registration => {
+        messaging.useServiceWorker(registration);
+        return messaging.requestPermission();
+      })
+      .then(() => messaging.getToken())
+      .then(token => {
+        console.log('🔔 Push Token:', token);
+      })
+      .catch(err => {
+        console.warn('❌ Push permission denied:', err);
+      });
+
+    messaging.onMessage(payload => {
+      const { title, body } = payload.notification;
+      alert(`${title}: ${body}`);
+    });
   </script>
 </body>
 </html>
