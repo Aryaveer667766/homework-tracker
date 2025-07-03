@@ -8,11 +8,19 @@
 </head>
 <body>
   <header>
-    <h1>📘 Homework</h1>
-    <button id="darkToggle">Toggle Dark Mode</button>
+    <h1>📘 Homework </h1>
+    <div>
+      <button id="darkToggle">🌗</button>
+    </div>
   </header>
 
-  <div id="subjectsContainer"></div>
+  <nav class="tabs">
+    <button class="tab active" data-subject="Maths">Maths</button>
+    <button class="tab" data-subject="Chemistry">Chemistry</button>
+    <button class="tab" data-subject="Physics">Physics</button>
+  </nav>
+
+  <div id="subjectContent"></div>
   <div id="toast-container"></div>
 
   <script type="module" src="script.js"></script>
