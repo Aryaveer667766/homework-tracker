@@ -30,9 +30,12 @@ const db = getFirestore(app);
 const auth = getAuth();
 
 let currentUID = null;
+let currentSearch = "";
+
 const subjects = ['Maths', 'Chemistry', 'Physics'];
 const subjectContent = document.getElementById('subjectContent');
 const toastContainer = document.getElementById('toast-container');
+const searchInput = document.getElementById('searchInput');
 
 // 🔐 Anonymous Auth
 signInAnonymously(auth).catch(console.error);
@@ -71,6 +74,13 @@ function initUI() {
     };
   });
   renderSubject('Maths'); // default
+
+  // Setup search
+  searchInput.addEventListener("input", e => {
+    currentSearch = e.target.value.toLowerCase();
+    const activeTab = document.querySelector(".tab.active");
+    if (activeTab) renderSubject(activeTab.dataset.subject);
+  });
 }
 
 function renderSubject(subject) {
@@ -117,6 +127,17 @@ function renderSubject(subject) {
 function renderChapterUI(subject, chapter, container, homeworkList = []) {
   const section = document.createElement('div');
   section.className = 'chapter-section';
+
+  const filteredList = homeworkList.filter(hw => {
+    return (
+      chapter.toLowerCase().includes(currentSearch) ||
+      hw.text.toLowerCase().includes(currentSearch) ||
+      (hw.date || '').toLowerCase().includes(currentSearch)
+    );
+  });
+
+  if (filteredList.length === 0 && homeworkList.length > 0) return;
+
   section.innerHTML = `<h3>${chapter}</h3>`;
   container.appendChild(section);
 
@@ -179,7 +200,7 @@ function renderChapterUI(subject, chapter, container, homeworkList = []) {
   section.appendChild(addBtn);
   section.appendChild(list);
 
-  homeworkList.forEach(hw => {
+  filteredList.forEach(hw => {
     const li = document.createElement('li');
     li.innerHTML = `<strong>${hw.text}</strong>`;
     if (hw.date) li.innerHTML += `<br><small>📅 ${hw.date}</small>`;
