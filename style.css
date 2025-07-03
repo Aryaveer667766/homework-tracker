@@ -1,3 +1,4 @@
+/* style.css */
 :root {
   --bg: #f8f9fa;
   --card: #ffffff;
@@ -79,7 +80,7 @@ button:hover {
 }
 
 input[type="text"],
-input[type="file"] {
+input[type="date"] {
   display: block;
   width: 100%;
   margin: 6px 0;
@@ -90,10 +91,21 @@ input[type="file"] {
 }
 
 .dark input[type="text"],
-.dark input[type="file"] {
+.dark input[type="date"] {
   background: #333;
   color: #f0f0f0;
   border-color: #555;
+}
+
+.upload-btn {
+  display: inline-block;
+  background: var(--accent);
+  color: white;
+  padding: 8px 12px;
+  margin: 6px 0;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
 }
 
 img.thumb {
