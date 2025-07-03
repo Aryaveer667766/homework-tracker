@@ -30,22 +30,28 @@ const db = getFirestore(app);
 const auth = getAuth();
 
 let currentUID = null;
+const subjects = ['Maths', 'Chemistry', 'Physics'];
+const subjectContent = document.getElementById('subjectContent');
+const toastContainer = document.getElementById('toast-container');
 
-// Sign in user anonymously
+// 🔐 Anonymous Auth
 signInAnonymously(auth).catch(console.error);
-
-onAuthStateChanged(auth, (user) => {
+onAuthStateChanged(auth, user => {
   if (user) {
     currentUID = user.uid;
-    initApp();
-  } else {
-    console.warn("User not signed in.");
+    initUI();
   }
 });
 
-const subjects = ['Maths', 'Chemistry', 'Physics'];
-const container = document.getElementById('subjectsContainer');
-const toastContainer = document.getElementById('toast-container');
+// 🌗 Dark mode toggle
+document.getElementById('darkToggle').onclick = () => {
+  document.body.classList.toggle('dark');
+  localStorage.setItem('theme', document.body.classList.contains('dark') ? 'dark' : 'light');
+};
+
+if (localStorage.getItem('theme') === 'dark') {
+  document.body.classList.add('dark');
+}
 
 function showToast(msg) {
   const toast = document.createElement('div');
@@ -55,55 +61,127 @@ function showToast(msg) {
   setTimeout(() => toast.remove(), 3000);
 }
 
-function renderSubject(subject) {
-  const card = document.createElement('div');
-  card.className = 'subject';
+// Tabs logic
+function initUI() {
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.onclick = () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      renderSubject(tab.dataset.subject);
+    };
+  });
+  renderSubject('Maths'); // default
+}
 
-  const title = document.createElement('h2');
-  title.innerText = subject;
-  card.appendChild(title);
+function renderSubject(subject) {
+  subjectContent.innerHTML = ''; // Clear previous
+
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.innerHTML = `<h2>${subject}</h2>`;
+  subjectContent.appendChild(card);
 
   const chapterInput = document.createElement('input');
-  chapterInput.placeholder = 'Enter chapter name';
+  chapterInput.placeholder = 'Enter Chapter Name';
   card.appendChild(chapterInput);
 
-  const addChapterBtn = document.createElement('button');
-  addChapterBtn.innerText = 'Add Chapter';
-  addChapterBtn.onclick = () => renderChapter(subject, chapterInput.value.trim(), card);
-  card.appendChild(addChapterBtn);
+  const addBtn = document.createElement('button');
+  addBtn.innerText = '➕ Add Chapter';
+  addBtn.onclick = () => {
+    if (chapterInput.value.trim()) {
+      renderChapterUI(subject, chapterInput.value.trim(), card);
+      chapterInput.value = '';
+    }
+  };
+  card.appendChild(addBtn);
 
-  container.appendChild(card);
-
+  // Real-time Firestore fetch
   const q = query(collection(db, 'homeworks'), where('subject', '==', subject));
-  onSnapshot(q, (snapshot) => {
-    card.querySelectorAll('.chapter').forEach(c => c.remove());
+  onSnapshot(q, snapshot => {
     const chapters = {};
-    snapshot.forEach(doc => {
-      const hw = doc.data();
-      if (!chapters[hw.chapter]) chapters[hw.chapter] = [];
-      chapters[hw.chapter].push({ ...hw, id: doc.id });
+    snapshot.forEach(docSnap => {
+      const data = docSnap.data();
+      if (!chapters[data.chapter]) chapters[data.chapter] = [];
+      chapters[data.chapter].push({ ...data, id: docSnap.id });
     });
-    for (const chName in chapters) {
-      renderChapter(subject, chName, card, chapters[chName]);
+
+    // Clear old chapters
+    card.querySelectorAll('.chapter-section').forEach(el => el.remove());
+
+    for (const chapter in chapters) {
+      renderChapterUI(subject, chapter, card, chapters[chapter]);
     }
   });
 }
 
-async function renderChapter(subject, chapter, card, homeworkList = []) {
-  if (!chapter) return;
-  const chDiv = document.createElement('div');
-  chDiv.className = 'chapter';
+function renderChapterUI(subject, chapter, container, homeworkList = []) {
+  const section = document.createElement('div');
+  section.className = 'chapter-section';
+  section.innerHTML = `<h3>${chapter}</h3>`;
+  container.appendChild(section);
 
-  const chHeader = document.createElement('div');
-  chHeader.innerHTML = `<strong>${chapter}</strong>`;
-  chDiv.appendChild(chHeader);
+  const hwInput = document.createElement('input');
+  hwInput.placeholder = 'Homework...';
+  const dateInput = document.createElement('input');
+  dateInput.type = 'date';
 
-  const hwList = document.createElement('ul');
-  hwList.className = 'homework';
+  const fileInput = document.createElement('input');
+  fileInput.type = 'file';
+  fileInput.accept = 'image/*';
+  fileInput.style.display = 'none';
+
+  const uploadBtn = document.createElement('label');
+  uploadBtn.className = 'upload-btn';
+  uploadBtn.innerText = '📷 Upload Image';
+  uploadBtn.appendChild(fileInput);
+
+  const addBtn = document.createElement('button');
+  addBtn.innerText = '✅ Add Homework';
+
+  const list = document.createElement('ul');
+  list.className = 'homework-list';
+
+  addBtn.onclick = async () => {
+    const text = hwInput.value.trim();
+    const date = dateInput.value;
+    const file = fileInput.files[0];
+    if (!text) return;
+
+    const push = async (img = null) => {
+      await addDoc(collection(db, 'homeworks'), {
+        subject,
+        chapter,
+        text,
+        date,
+        image: img,
+        uid: currentUID,
+        created: Date.now()
+      });
+      showToast('Homework added ✅');
+    };
+
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => push(reader.result);
+      reader.readAsDataURL(file);
+    } else {
+      push();
+    }
+
+    hwInput.value = '';
+    dateInput.value = '';
+    fileInput.value = '';
+  };
+
+  section.appendChild(hwInput);
+  section.appendChild(dateInput);
+  section.appendChild(uploadBtn);
+  section.appendChild(addBtn);
+  section.appendChild(list);
 
   homeworkList.forEach(hw => {
     const li = document.createElement('li');
-    li.innerHTML = `${hw.text}`;
+    li.innerHTML = `<strong>${hw.text}</strong>`;
     if (hw.date) li.innerHTML += `<br><small>📅 ${hw.date}</small>`;
     if (hw.image) {
       const img = document.createElement('img');
@@ -112,90 +190,17 @@ async function renderChapter(subject, chapter, card, homeworkList = []) {
       li.appendChild(img);
     }
 
-    // Show delete only if user is the owner
     if (hw.uid === currentUID) {
-      const dBtn = document.createElement('button');
-      dBtn.innerText = '🗑';
-      dBtn.className = 'delete-btn';
-      dBtn.onclick = async () => {
+      const delBtn = document.createElement('button');
+      delBtn.className = 'delete-btn';
+      delBtn.innerText = '🗑 Delete';
+      delBtn.onclick = async () => {
         await deleteDoc(doc(db, 'homeworks', hw.id));
-        showToast('🗑 Homework deleted');
+        showToast('Homework deleted 🗑');
       };
-      li.appendChild(dBtn);
+      li.appendChild(delBtn);
     }
 
-    hwList.appendChild(li);
+    list.appendChild(li);
   });
-
-  chDiv.appendChild(hwList);
-
-  const hwInput = document.createElement('input');
-  hwInput.placeholder = 'Homework text';
-  const dateInput = document.createElement('input');
-  dateInput.type = 'date';
-  const hwImgInput = document.createElement('input');
-  hwImgInput.type = 'file';
-  hwImgInput.accept = 'image/*';
-  hwImgInput.style.display = 'none';
-
-  const imageLabel = document.createElement('label');
-  imageLabel.className = 'upload-btn';
-  imageLabel.innerText = '📷 Upload Image';
-  imageLabel.appendChild(hwImgInput);
-
-  const hwBtn = document.createElement('button');
-  hwBtn.innerText = 'Add Homework';
-  hwBtn.onclick = async () => {
-    const text = hwInput.value.trim();
-    const date = dateInput.value;
-    if (!text) return;
-    const imgFile = hwImgInput.files[0];
-
-    const pushToFirebase = async (imgData = null) => {
-      await addDoc(collection(db, 'homeworks'), {
-        subject,
-        chapter,
-        text,
-        date,
-        image: imgData,
-        created: Date.now(),
-        uid: currentUID
-      });
-      showToast('✅ Homework added');
-    };
-
-    if (imgFile) {
-      const reader = new FileReader();
-      reader.onloadend = () => pushToFirebase(reader.result);
-      reader.readAsDataURL(imgFile);
-    } else {
-      pushToFirebase();
-    }
-
-    hwInput.value = '';
-    hwImgInput.value = '';
-    dateInput.value = '';
-  };
-
-  chDiv.appendChild(hwInput);
-  chDiv.appendChild(dateInput);
-  chDiv.appendChild(imageLabel);
-  chDiv.appendChild(hwBtn);
-
-  card.appendChild(chDiv);
-}
-
-function initDarkMode() {
-  const prefersDark = localStorage.getItem('theme') === 'dark' || window.matchMedia('(prefers-color-scheme: dark)').matches;
-  document.body.classList.toggle('dark', prefersDark);
-}
-
-function initApp() {
-  document.getElementById('darkToggle').onclick = () => {
-    document.body.classList.toggle('dark');
-    localStorage.setItem('theme', document.body.classList.contains('dark') ? 'dark' : 'light');
-  };
-
-  initDarkMode();
-  subjects.forEach(renderSubject);
 }
