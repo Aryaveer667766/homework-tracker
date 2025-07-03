@@ -68,7 +68,12 @@ function createSubjectCard(subject) {
 
     data[subject][chapter].forEach((item, i) => {
       const li = document.createElement('li');
-      li.innerHTML = `${item.text}<br>${item.date ? `<small>📅 ${item.date}</small>` : ''}`;
+      li.innerHTML = `${item.text}`;
+
+      if (item.date) {
+        li.innerHTML += `<br><small>📅 ${item.date}</small>`;
+      }
+
       if (item.image) {
         const img = document.createElement('img');
         img.src = item.image;
@@ -85,8 +90,8 @@ function createSubjectCard(subject) {
         render();
         showToast(`📝 Homework deleted`);
       };
-      li.appendChild(dBtn);
 
+      li.appendChild(dBtn);
       hwList.appendChild(li);
     });
 
