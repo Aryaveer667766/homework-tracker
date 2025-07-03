@@ -6,6 +6,14 @@ function saveData() {
   localStorage.setItem("homeworkData", JSON.stringify(data));
 }
 
+function showToast(msg) {
+  const toast = document.createElement("div");
+  toast.className = "toast";
+  toast.textContent = msg;
+  document.getElementById("toast-container").appendChild(toast);
+  setTimeout(() => toast.remove(), 3000);
+}
+
 function createSubjectCard(subject) {
   const container = document.createElement("div");
   container.className = "subject";
@@ -31,6 +39,7 @@ function createSubjectCard(subject) {
       data[subject][chapterName] = [];
       saveData();
       renderChapters(subject);
+      showToast(`📘 Chapter "${chapterName}" added`);
     }
     chapterInput.value = "";
   };
@@ -53,11 +62,25 @@ function renderChapters(subject) {
 
     const chapterTitle = document.createElement("strong");
     chapterTitle.textContent = chapter;
+
+    const delChapterBtn = document.createElement("button");
+    delChapterBtn.className = "delete-btn";
+    delChapterBtn.textContent = "🗑️ Delete Chapter";
+    delChapterBtn.onclick = () => {
+      if (confirm(`Delete chapter "${chapter}"?`)) {
+        delete data[subject][chapter];
+        saveData();
+        renderChapters(subject);
+        showToast(`❌ Chapter "${chapter}" deleted`);
+      }
+    };
+
     chapterDiv.appendChild(chapterTitle);
+    chapterDiv.appendChild(delChapterBtn);
 
     const ul = document.createElement("ul");
     ul.className = "homework";
-    chapters[chapter].forEach(hw => {
+    chapters[chapter].forEach((hw, idx) => {
       const li = document.createElement("li");
       li.innerHTML = hw.text;
       if (hw.image) {
@@ -66,6 +89,18 @@ function renderChapters(subject) {
         img.className = "thumb";
         li.appendChild(img);
       }
+
+      const delBtn = document.createElement("button");
+      delBtn.className = "delete-btn";
+      delBtn.textContent = "🗑️";
+      delBtn.onclick = () => {
+        data[subject][chapter].splice(idx, 1);
+        saveData();
+        renderChapters(subject);
+        showToast(`🗑️ Homework deleted`);
+      };
+
+      li.appendChild(delBtn);
       ul.appendChild(li);
     });
     chapterDiv.appendChild(ul);
@@ -88,6 +123,7 @@ function renderChapters(subject) {
         data[subject][chapter].push(hwObj);
         saveData();
         renderChapters(subject);
+        showToast(`✅ Homework added`);
       };
       const file = imgInput.files[0];
       if (file) {
@@ -96,7 +132,10 @@ function renderChapters(subject) {
         data[subject][chapter].push({ text: hwText });
         saveData();
         renderChapters(subject);
+        showToast(`✅ Homework added`);
       }
+      hwInput.value = "";
+      imgInput.value = "";
     };
 
     chapterDiv.appendChild(hwInput);
@@ -109,12 +148,15 @@ function renderChapters(subject) {
 
 subjects.forEach(createSubjectCard);
 
-// Dark Mode Toggle
+// 🌙 Dark Mode
 const toggle = document.getElementById("darkToggle");
 toggle.onclick = () => {
   document.body.classList.toggle("dark");
   localStorage.setItem("theme", document.body.classList.contains("dark") ? "dark" : "light");
 };
-if (localStorage.getItem("theme") === "dark") {
+const storedTheme = localStorage.getItem("theme");
+if (storedTheme) {
+  document.body.classList.toggle("dark", storedTheme === "dark");
+} else if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
   document.body.classList.add("dark");
 }
