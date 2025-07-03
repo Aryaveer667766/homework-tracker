@@ -15,6 +15,7 @@ import {
   onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
 
+// Firebase Config
 const firebaseConfig = {
   apiKey: "AIzaSyBRwSrbSvrFAW5dTyQN0BoRHS3_6iLrV_E",
   authDomain: "homeworkbrothers-12345.firebaseapp.com",
@@ -37,7 +38,7 @@ const subjectContent = document.getElementById('subjectContent');
 const toastContainer = document.getElementById('toast-container');
 const searchInput = document.getElementById('searchInput');
 
-// 🔐 Anonymous Auth
+// Auth
 signInAnonymously(auth).catch(console.error);
 onAuthStateChanged(auth, user => {
   if (user) {
@@ -46,16 +47,16 @@ onAuthStateChanged(auth, user => {
   }
 });
 
-// 🌗 Dark mode toggle
+// Dark Mode
 document.getElementById('darkToggle').onclick = () => {
   document.body.classList.toggle('dark');
   localStorage.setItem('theme', document.body.classList.contains('dark') ? 'dark' : 'light');
 };
-
 if (localStorage.getItem('theme') === 'dark') {
   document.body.classList.add('dark');
 }
 
+// Toast
 function showToast(msg) {
   const toast = document.createElement('div');
   toast.className = 'toast';
@@ -64,7 +65,14 @@ function showToast(msg) {
   setTimeout(() => toast.remove(), 3000);
 }
 
-// Tabs logic
+// Search Input
+searchInput?.addEventListener("input", e => {
+  currentSearch = e.target.value.toLowerCase();
+  const activeTab = document.querySelector(".tab.active");
+  if (activeTab) renderSubject(activeTab.dataset.subject);
+});
+
+// Tab Logic
 function initUI() {
   document.querySelectorAll('.tab').forEach(tab => {
     tab.onclick = () => {
@@ -74,18 +82,11 @@ function initUI() {
     };
   });
   renderSubject('Maths'); // default
-
-  // Setup search
-  searchInput.addEventListener("input", e => {
-    currentSearch = e.target.value.toLowerCase();
-    const activeTab = document.querySelector(".tab.active");
-    if (activeTab) renderSubject(activeTab.dataset.subject);
-  });
 }
 
+// Render Subject
 function renderSubject(subject) {
-  subjectContent.innerHTML = ''; // Clear previous
-
+  subjectContent.innerHTML = '';
   const card = document.createElement('div');
   card.className = 'card';
   card.innerHTML = `<h2>${subject}</h2>`;
@@ -105,7 +106,6 @@ function renderSubject(subject) {
   };
   card.appendChild(addBtn);
 
-  // Real-time Firestore fetch
   const q = query(collection(db, 'homeworks'), where('subject', '==', subject));
   onSnapshot(q, snapshot => {
     const chapters = {};
@@ -115,7 +115,6 @@ function renderSubject(subject) {
       chapters[data.chapter].push({ ...data, id: docSnap.id });
     });
 
-    // Clear old chapters
     card.querySelectorAll('.chapter-section').forEach(el => el.remove());
 
     for (const chapter in chapters) {
@@ -124,6 +123,7 @@ function renderSubject(subject) {
   });
 }
 
+// Render Chapter
 function renderChapterUI(subject, chapter, container, homeworkList = []) {
   const section = document.createElement('div');
   section.className = 'chapter-section';
