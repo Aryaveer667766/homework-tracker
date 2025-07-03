@@ -9,6 +9,11 @@ import {
   where,
   onSnapshot
 } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
+import {
+  getAuth,
+  signInAnonymously,
+  onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBRwSrbSvrFAW5dTyQN0BoRHS3_6iLrV_E",
@@ -22,6 +27,21 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth();
+
+let currentUID = null;
+
+// Sign in user anonymously
+signInAnonymously(auth).catch(console.error);
+
+onAuthStateChanged(auth, (user) => {
+  if (user) {
+    currentUID = user.uid;
+    initApp();
+  } else {
+    console.warn("User not signed in.");
+  }
+});
 
 const subjects = ['Maths', 'Chemistry', 'Physics'];
 const container = document.getElementById('subjectsContainer');
@@ -91,14 +111,19 @@ async function renderChapter(subject, chapter, card, homeworkList = []) {
       img.className = 'thumb';
       li.appendChild(img);
     }
-    const dBtn = document.createElement('button');
-    dBtn.innerText = '🗑';
-    dBtn.className = 'delete-btn';
-    dBtn.onclick = async () => {
-      await deleteDoc(doc(db, 'homeworks', hw.id));
-      showToast('🗑 Homework deleted');
-    };
-    li.appendChild(dBtn);
+
+    // Show delete only if user is the owner
+    if (hw.uid === currentUID) {
+      const dBtn = document.createElement('button');
+      dBtn.innerText = '🗑';
+      dBtn.className = 'delete-btn';
+      dBtn.onclick = async () => {
+        await deleteDoc(doc(db, 'homeworks', hw.id));
+        showToast('🗑 Homework deleted');
+      };
+      li.appendChild(dBtn);
+    }
+
     hwList.appendChild(li);
   });
 
@@ -133,7 +158,8 @@ async function renderChapter(subject, chapter, card, homeworkList = []) {
         text,
         date,
         image: imgData,
-        created: Date.now()
+        created: Date.now(),
+        uid: currentUID
       });
       showToast('✅ Homework added');
     };
@@ -164,10 +190,12 @@ function initDarkMode() {
   document.body.classList.toggle('dark', prefersDark);
 }
 
-document.getElementById('darkToggle').onclick = () => {
-  document.body.classList.toggle('dark');
-  localStorage.setItem('theme', document.body.classList.contains('dark') ? 'dark' : 'light');
-};
+function initApp() {
+  document.getElementById('darkToggle').onclick = () => {
+    document.body.classList.toggle('dark');
+    localStorage.setItem('theme', document.body.classList.contains('dark') ? 'dark' : 'light');
+  };
 
-initDarkMode();
-subjects.forEach(renderSubject);
+  initDarkMode();
+  subjects.forEach(renderSubject);
+}
