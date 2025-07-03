@@ -1,12 +1,9 @@
-/* style.css */
 :root {
   --bg: #f8f9fa;
   --card: #ffffff;
   --text: #111;
   --accent: #3b82f6;
-  --toast-bg: #222;
-  --toast-text: #fff;
-  --shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+  --shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
 }
 
 .dark {
@@ -14,8 +11,6 @@
   --card: #1f1f1f;
   --text: #f5f5f5;
   --accent: #60a5fa;
-  --toast-bg: #eee;
-  --toast-text: #111;
   --shadow: 0 8px 20px rgba(255, 255, 255, 0.05);
 }
 
@@ -24,8 +19,8 @@ body {
   font-family: 'Segoe UI', sans-serif;
   background: var(--bg);
   color: var(--text);
-  transition: 0.3s;
-  padding: 20px;
+  padding: 16px;
+  transition: background 0.3s ease, color 0.3s ease;
 }
 
 header {
@@ -36,62 +31,75 @@ header {
 }
 
 h1 {
-  font-size: 28px;
+  font-size: 24px;
+  margin: 0;
 }
 
 button {
-  padding: 8px 14px;
   background: var(--accent);
   color: white;
   border: none;
   border-radius: 8px;
+  padding: 8px 12px;
   cursor: pointer;
   font-weight: bold;
-  transition: background 0.2s;
 }
 
 button:hover {
-  background: #2563eb;
+  opacity: 0.9;
 }
 
-#subjectsContainer {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(310px, 1fr));
-  gap: 20px;
+.tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
 }
 
-.subject {
+.tab {
+  padding: 10px 16px;
+  background: var(--card);
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+  font-weight: bold;
+}
+
+.tab.active {
+  background: var(--accent);
+  color: white;
+}
+
+.card {
   background: var(--card);
   border-radius: 16px;
-  padding: 20px;
   box-shadow: var(--shadow);
+  padding: 16px;
+  margin-bottom: 16px;
   animation: fadeIn 0.3s ease-in-out;
 }
 
-.chapter {
-  background: rgba(0, 0, 0, 0.04);
-  padding: 12px;
-  border-radius: 8px;
-  margin-top: 10px;
+.card h2 {
+  margin-top: 0;
 }
 
-.dark .chapter {
-  background: rgba(255, 255, 255, 0.05);
+.chapter-section {
+  margin-top: 12px;
 }
 
-input[type="text"],
-input[type="date"] {
-  display: block;
+.chapter-section h3 {
+  margin-bottom: 4px;
+}
+
+input, input[type="date"] {
   width: 100%;
-  margin: 6px 0;
   padding: 10px;
-  border: 1px solid #ccc;
+  margin: 6px 0;
   border-radius: 6px;
+  border: 1px solid #ccc;
   background: #fff;
 }
 
-.dark input[type="text"],
-.dark input[type="date"] {
+.dark input {
   background: #333;
   color: #f0f0f0;
   border-color: #555;
@@ -99,55 +107,56 @@ input[type="date"] {
 
 .upload-btn {
   display: inline-block;
+  padding: 6px 10px;
   background: var(--accent);
   color: white;
-  padding: 8px 12px;
-  margin: 6px 0;
   border-radius: 6px;
   cursor: pointer;
-  font-size: 14px;
+  margin-top: 8px;
 }
 
 img.thumb {
-  margin-top: 6px;
-  max-width: 100%;
-  border-radius: 6px;
+  width: 100%;
+  max-width: 200px;
+  border-radius: 8px;
+  margin-top: 8px;
 }
 
-ul.homework {
+.homework-list {
   list-style: none;
-  padding-left: 15px;
-  margin-top: 10px;
+  padding-left: 0;
+  margin-top: 8px;
 }
 
-ul.homework li {
+.homework-list li {
   background: rgba(0,0,0,0.03);
-  padding: 6px;
-  margin-bottom: 5px;
+  margin-bottom: 8px;
+  padding: 8px;
   border-radius: 6px;
   position: relative;
 }
 
-.toast {
-  background: var(--toast-bg);
-  color: var(--toast-text);
-  padding: 10px 20px;
-  margin-top: 10px;
+button.delete-btn {
+  background: red;
+  color: white;
+  border: none;
   border-radius: 6px;
-  opacity: 0.95;
-  animation: toastInOut 3s forwards;
+  padding: 4px 8px;
+  margin-top: 6px;
+  cursor: pointer;
 }
 
-#toast-container {
+.toast {
   position: fixed;
   bottom: 20px;
   right: 20px;
+  background: black;
+  color: white;
+  padding: 10px 20px;
+  border-radius: 8px;
+  opacity: 0.9;
   z-index: 999;
-}
-
-button.delete-btn {
-  background: red;
-  margin-left: 10px;
+  animation: toastInOut 3s forwards;
 }
 
 @keyframes toastInOut {
@@ -160,10 +169,4 @@ button.delete-btn {
 @keyframes fadeIn {
   from { opacity: 0; transform: scale(0.98); }
   to { opacity: 1; transform: scale(1); }
-}
-
-@media (max-width: 768px) {
-  #subjectsContainer {
-    grid-template-columns: 1fr;
-  }
 }
