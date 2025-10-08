@@ -324,7 +324,7 @@
         // Import Firebase modules
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-        import { getFirestore, collection, onSnapshot, addDoc, doc, getDoc, setDoc, updateDoc, deleteDoc, query, orderBy, serverTimestamp, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+        import { getFirestore, collection, onSnapshot, addDoc, doc, getDoc, setDoc, updateDoc, deleteDoc, query, where, orderBy, serverTimestamp, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
         document.addEventListener('DOMContentLoaded', () => {
 
@@ -373,50 +373,25 @@
             const loginForm = document.getElementById('login-form');
             const logoutBtn = document.getElementById('logout-btn');
 
-            // This function handles the app state based on whether a user is logged in
-            function handleAuthentication() {
-                loggedInUser = localStorage.getItem('swadishth_loggedInUser');
-
-                if (loggedInUser && USERS.hasOwnProperty(loggedInUser)) {
-                    // If a user is logged in via localStorage, ensure a Firebase session is active
-                    if (!auth.currentUser) {
-                        signInAnonymously(auth).catch(error => console.error("Anonymous sign-in failed:", error));
-                    } else {
-                        // If firebase user already exists, proceed to setup app
-                        setupAppForUser(auth.currentUser);
-                    }
-                } else {
-                    // No valid user in localStorage, show login screen
-                    loginScreen.style.display = 'flex';
-                    appScreen.style.display = 'none';
-                    if (auth.currentUser) {
-                        signOut(auth); // Sign out any lingering anonymous user
-                    }
-                }
-            }
-
-            // This function sets up the app once we have a Firebase user and a custom user
-            function setupAppForUser(firebaseUser) {
-                firebaseUserId = firebaseUser.uid;
-                loggedInUser = localStorage.getItem('swadishth_loggedInUser');
-
-                loginScreen.style.display = 'none';
-                appScreen.style.display = 'flex';
-                document.getElementById('current-user').textContent = loggedInUser;
-
-                setupRealtimeListeners();
-                showPage(window.location.hash || '#dashboard');
-            }
-            
             // Firebase auth state change listener
             onAuthStateChanged(auth, user => {
                 if (user) {
-                    // A Firebase user is present, now check if it's part of a valid custom login session
-                    if (localStorage.getItem('swadishth_loggedInUser')) {
-                        setupAppForUser(user);
+                    firebaseUserId = user.uid; // We have an anonymous firebase user
+                    loggedInUser = localStorage.getItem('swadishth_loggedInUser'); // Check for our custom user
+
+                    if (loggedInUser && USERS.hasOwnProperty(loggedInUser)) {
+                        // Both firebase auth and custom auth are present, setup the app
+                        loginScreen.style.display = 'none';
+                        appScreen.style.display = 'flex';
+                        document.getElementById('current-user').textContent = loggedInUser;
+                        setupRealtimeListeners();
+                        showPage(window.location.hash || '#dashboard');
+                    } else {
+                        // If there's a lingering anonymous session without a custom login, sign out.
+                        signOut(auth);
                     }
                 } else {
-                    // Firebase user is signed out, ensure UI reflects this
+                    // No firebase user, show login screen and clean up
                     firebaseUserId = null;
                     loggedInUser = null;
                     localStorage.removeItem('swadishth_loggedInUser');
@@ -427,30 +402,44 @@
                 }
             });
 
-            // Handle custom login form submission
-            loginForm.addEventListener('submit', (e) => {
+
+            loginForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
                 const username = e.target.username.value;
                 const password = e.target.password.value;
                 const loginError = document.getElementById('login-error');
-
+                loginError.classList.add('hidden');
+                
+                // Step 1: Validate against our predefined user list
                 if (USERS[username] === password) {
+                    // Step 2: Store the custom username
                     localStorage.setItem('swadishth_loggedInUser', username);
-                    loginError.classList.add('hidden');
-                    handleAuthentication(); // Trigger auth flow
+                    
+                    // Step 3: Trigger Firebase anonymous sign-in.
+                    // The onAuthStateChanged listener will handle the rest.
+                    if (!auth.currentUser) {
+                        try {
+                            await signInAnonymously(auth);
+                        } catch (error) {
+                             console.error("Anonymous Sign In Error:", error);
+                             loginError.textContent = "Could not connect to the authentication service.";
+                             loginError.classList.remove('hidden');
+                             localStorage.removeItem('swadishth_loggedInUser');
+                        }
+                    } else {
+                        // If already signed in (e.g., from a failed custom login), just reload state
+                         location.reload(); 
+                    }
                 } else {
+                    loginError.textContent = "Invalid username or password.";
                     loginError.classList.remove('hidden');
                 }
             });
             
             // Handle logout
             logoutBtn.addEventListener('click', () => {
-                signOut(auth); // This will trigger onAuthStateChanged to clean up
+                signOut(auth); // This will trigger onAuthStateChanged to clean everything up
             });
-
-            // Initial check on page load
-            handleAuthentication();
-
 
             // --- UI & NAVIGATION ---
             const pages = document.querySelectorAll('.page');
@@ -680,9 +669,9 @@
                 showModal('Add New Product', content, async (form) => {
                     const newProduct = {
                         name: form.name.value, sku: form.sku.value,
-                        price: parseFloat(form.price.value), stock: parseInt(form.stock.value)
+                        price: parseFloat(form.price.value), stock: parseInt(form.stock.value),
                     };
-                    await addDoc(collection(db, `artifacts/${appId}/users/${firebaseUserId}/products`), newProduct);
+                    await addDoc(collection(db, `artifacts/${appId}/public/data/products`), newProduct);
                     showToast('Product added successfully.');
                     return true;
                 });
@@ -700,14 +689,14 @@
                             name: form.name.value, sku: form.sku.value,
                             price: parseFloat(form.price.value), stock: parseInt(form.stock.value)
                         };
-                        await setDoc(doc(db, `artifacts/${appId}/users/${firebaseUserId}/products`, id), updatedProduct);
+                        await setDoc(doc(db, `artifacts/${appId}/public/data/products`, id), updatedProduct, { merge: true });
                         showToast('Product updated.');
                         return true;
                     });
                 }
                 if (e.target.classList.contains('delete-product-btn')) {
                     showConfirmationModal('Delete Product', 'Are you sure you want to delete this product?', async () => {
-                        await deleteDoc(doc(db, `artifacts/${appId}/users/${firebaseUserId}/products`, id));
+                        await deleteDoc(doc(db, `artifacts/${appId}/public/data/products`, id));
                         showToast('Product deleted.');
                     });
                 }
@@ -721,7 +710,7 @@
                         clientName: form.clientName.value, contactPerson: form.contactPerson.value,
                         email: form.email.value, phone: form.phone.value
                     };
-                    await addDoc(collection(db, `artifacts/${appId}/users/${firebaseUserId}/clients`), newClient);
+                    await addDoc(collection(db, `artifacts/${appId}/public/data/clients`), newClient);
                     showToast('Client added successfully.');
                     return true;
                 });
@@ -739,14 +728,14 @@
                             clientName: form.clientName.value, contactPerson: form.contactPerson.value,
                             email: form.email.value, phone: form.phone.value
                         };
-                        await setDoc(doc(db, `artifacts/${appId}/users/${firebaseUserId}/clients`, id), updatedClient);
+                        await setDoc(doc(db, `artifacts/${appId}/public/data/clients`, id), updatedClient, { merge: true });
                         showToast('Client updated.');
                         return true;
                     });
                 }
                 if (e.target.classList.contains('delete-client-btn')) {
                     showConfirmationModal('Delete Client', 'Are you sure you want to delete this client?', async () => {
-                        await deleteDoc(doc(db, `artifacts/${appId}/users/${firebaseUserId}/clients`, id));
+                        await deleteDoc(doc(db, `artifacts/${appId}/public/data/clients`, id));
                         showToast('Client deleted.');
                     });
                 }
@@ -827,16 +816,15 @@
                 const subtotal = currentOrderItems.reduce((sum, item) => sum + item.total, 0);
                 const total = subtotal - discount;
 
-                const newOrder = { clientId, items: currentOrderItems, subtotal, discount, total, status, createdAt: serverTimestamp() };
+                const newOrder = { clientId, items: currentOrderItems, subtotal, discount, total, status, createdAt: serverTimestamp(), createdBy: loggedInUser };
                 
-                // Use a batch write to add order and update stock atomically
                 const batch = writeBatch(db);
-                const orderRef = doc(collection(db, `artifacts/${appId}/users/${firebaseUserId}/orders`));
+                const orderRef = doc(collection(db, `artifacts/${appId}/public/data/orders`));
                 batch.set(orderRef, newOrder);
 
                 if (status !== 'Draft') {
                     currentOrderItems.forEach(item => {
-                        const productRef = doc(db, `artifacts/${appId}/users/${firebaseUserId}/products`, item.productId);
+                        const productRef = doc(db, `artifacts/${appId}/public/data/products`, item.productId);
                         const product = DB.products.find(p => p.id === item.productId);
                         const newStock = product.stock - item.quantity;
                         batch.update(productRef, { stock: newStock });
@@ -875,7 +863,7 @@
                     document.getElementById('invoice-status-changer').addEventListener('change', async (e) => {
                         const newStatus = e.target.value;
                         const orderId = e.target.dataset.orderId;
-                        await updateDoc(doc(db, `artifacts/${appId}/users/${firebaseUserId}/orders`, orderId), { status: newStatus });
+                        await updateDoc(doc(db, `artifacts/${appId}/public/data/orders`, orderId), { status: newStatus });
                         showToast(`Order #${orderId} status changed to ${newStatus}.`);
                     });
                 }
@@ -921,19 +909,17 @@
             function setupRealtimeListeners() {
                 if (!firebaseUserId) return;
                 
-                // Clear existing listeners before setting up new ones
                 unsubscribeListeners.forEach(unsub => unsub());
                 unsubscribeListeners = [];
 
-                // --- User-specific data listeners ---
-                const collections = ['products', 'clients', 'orders'];
-                collections.forEach(col => {
-                    const q = query(collection(db, `artifacts/${appId}/users/${firebaseUserId}/${col}`));
+                // --- Shared (public) data listeners ---
+                const publicCollections = ['products', 'clients', 'orders'];
+                publicCollections.forEach(col => {
+                    const q = query(collection(db, `artifacts/${appId}/public/data/${col}`));
                     const unsubscribe = onSnapshot(q, (snapshot) => {
                         DB[col] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                        // Trigger renders based on which collection updated
                         if (col === 'products') { renderProducts(); populateOrderFormSelects(); }
-                        if (col === 'clients') { renderClients(); populateOrderFormSelects(); renderDashboard(); }
+                        if (col === 'clients') { renderClients(); populateOrderFormSelects(); renderDashboard(); renderOrders();}
                         if (col === 'orders') { renderOrders(); renderDashboard(); }
                     }, (error) => {
                         console.error(`Error fetching ${col}: `, error);
@@ -941,7 +927,7 @@
                     unsubscribeListeners.push(unsubscribe);
                 });
 
-                // --- Global/Team data listeners ---
+                // --- Team Hub (public) data listeners ---
                 const messagesQuery = query(collection(db, `artifacts/${appId}/public/data/messages`), orderBy('timestamp', 'asc'));
                 const unsubscribeMessages = onSnapshot(messagesQuery, (snapshot) => {
                     DB.messages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
