@@ -54,12 +54,23 @@
 
     <!-- Login Screen -->
     <div id="login-screen" class="fixed inset-0 bg-gray-100 flex items-center justify-center z-50">
-        <div class="w-full max-w-sm p-8 bg-white rounded-lg shadow-xl text-center">
-            <h1 class="text-3xl font-bold text-gray-900">Swadishth Hub</h1>
-            <p class="text-gray-500 mt-2 mb-6">Your real-time sales dashboard.</p>
-            <button id="login-btn" class="w-full px-4 py-2 bg-indigo-600 text-white rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                Start Session
-            </button>
+        <div class="w-full max-w-sm p-8 bg-white rounded-lg shadow-xl">
+            <h1 class="text-3xl font-bold text-gray-900 text-center">Swadishth Hub</h1>
+            <p class="text-center text-gray-500 mt-2 mb-6">Please log in to continue</p>
+            <form id="login-form">
+                <div class="mb-4">
+                    <label for="username" class="block text-sm font-medium text-gray-700">Username</label>
+                    <input type="text" id="username" name="username" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                </div>
+                <div class="mb-6">
+                    <label for="password" class="block text-sm font-medium text-gray-700">Password</label>
+                    <input type="password" id="password" name="password" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                </div>
+                <p id="login-error" class="text-sm text-red-600 mb-4 hidden">Invalid username or password.</p>
+                <button type="submit" class="w-full px-4 py-2 bg-indigo-600 text-white rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                    Login
+                </button>
+            </form>
         </div>
     </div>
 
@@ -107,7 +118,7 @@
                 </button>
                 <h2 id="page-title" class="text-xl font-semibold text-gray-800">Dashboard</h2>
                 <div>
-                    <span class="text-sm text-gray-600 mr-4">Welcome, <span id="current-user" class="font-medium text-xs"></span></span>
+                    <span class="text-sm text-gray-600 mr-4">Welcome, <span id="current-user" class="font-medium"></span></span>
                     <button id="logout-btn" class="px-3 py-1 bg-red-500 text-white text-sm rounded-md shadow-sm hover:bg-red-600">Logout</button>
                 </div>
             </header>
@@ -328,6 +339,13 @@
                 measurementId: "G-21XLQGRZJ0"
             };
             
+            // Predefined users
+            const USERS = {
+                sahil: 'sahil@swadishth',
+                aryaveer: 'arya@swadishth',
+                aryan: 'aryan@swadishth',
+            };
+            
             // Get app ID from environment
             const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
@@ -335,7 +353,9 @@
             const app = initializeApp(firebaseConfig);
             const auth = getAuth(app);
             const db = getFirestore(app);
-            let userId = null;
+            
+            let firebaseUserId = null;
+            let loggedInUser = null; // This will hold the custom username ('sahil', 'aryaveer', 'aryan')
             let unsubscribeListeners = []; // To hold unsubscribe functions for cleanup on logout
 
             // --- STATE MANAGEMENT (local cache populated by Firestore) ---
@@ -350,41 +370,87 @@
             // --- AUTHENTICATION ---
             const loginScreen = document.getElementById('login-screen');
             const appScreen = document.getElementById('app');
-            const loginBtn = document.getElementById('login-btn');
+            const loginForm = document.getElementById('login-form');
             const logoutBtn = document.getElementById('logout-btn');
 
-            onAuthStateChanged(auth, user => {
-                if (user) {
-                    // User is signed in.
-                    userId = user.uid;
-                    loginScreen.style.display = 'none';
-                    appScreen.style.display = 'flex';
-                    document.getElementById('current-user').textContent = `User: ${userId}`;
-                    
-                    // Initialize the app now that we have a user ID
-                    setupRealtimeListeners();
-                    showPage(window.location.hash || '#dashboard');
+            // This function handles the app state based on whether a user is logged in
+            function handleAuthentication() {
+                loggedInUser = localStorage.getItem('swadishth_loggedInUser');
 
+                if (loggedInUser && USERS.hasOwnProperty(loggedInUser)) {
+                    // If a user is logged in via localStorage, ensure a Firebase session is active
+                    if (!auth.currentUser) {
+                        signInAnonymously(auth).catch(error => console.error("Anonymous sign-in failed:", error));
+                    } else {
+                        // If firebase user already exists, proceed to setup app
+                        setupAppForUser(auth.currentUser);
+                    }
                 } else {
-                    // User is signed out.
-                    userId = null;
+                    // No valid user in localStorage, show login screen
                     loginScreen.style.display = 'flex';
                     appScreen.style.display = 'none';
-                    // Cleanup: Unsubscribe from all Firestore listeners
+                    if (auth.currentUser) {
+                        signOut(auth); // Sign out any lingering anonymous user
+                    }
+                }
+            }
+
+            // This function sets up the app once we have a Firebase user and a custom user
+            function setupAppForUser(firebaseUser) {
+                firebaseUserId = firebaseUser.uid;
+                loggedInUser = localStorage.getItem('swadishth_loggedInUser');
+
+                loginScreen.style.display = 'none';
+                appScreen.style.display = 'flex';
+                document.getElementById('current-user').textContent = loggedInUser;
+
+                setupRealtimeListeners();
+                showPage(window.location.hash || '#dashboard');
+            }
+            
+            // Firebase auth state change listener
+            onAuthStateChanged(auth, user => {
+                if (user) {
+                    // A Firebase user is present, now check if it's part of a valid custom login session
+                    if (localStorage.getItem('swadishth_loggedInUser')) {
+                        setupAppForUser(user);
+                    }
+                } else {
+                    // Firebase user is signed out, ensure UI reflects this
+                    firebaseUserId = null;
+                    loggedInUser = null;
+                    localStorage.removeItem('swadishth_loggedInUser');
+                    loginScreen.style.display = 'flex';
+                    appScreen.style.display = 'none';
                     unsubscribeListeners.forEach(unsubscribe => unsubscribe());
                     unsubscribeListeners = [];
                 }
             });
 
-            loginBtn.addEventListener('click', () => {
-                signInAnonymously(auth).catch(error => {
-                    console.error("Anonymous sign-in failed:", error);
-                });
+            // Handle custom login form submission
+            loginForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const username = e.target.username.value;
+                const password = e.target.password.value;
+                const loginError = document.getElementById('login-error');
+
+                if (USERS[username] === password) {
+                    localStorage.setItem('swadishth_loggedInUser', username);
+                    loginError.classList.add('hidden');
+                    handleAuthentication(); // Trigger auth flow
+                } else {
+                    loginError.classList.remove('hidden');
+                }
+            });
+            
+            // Handle logout
+            logoutBtn.addEventListener('click', () => {
+                signOut(auth); // This will trigger onAuthStateChanged to clean up
             });
 
-            logoutBtn.addEventListener('click', () => {
-                signOut(auth);
-            });
+            // Initial check on page load
+            handleAuthentication();
+
 
             // --- UI & NAVIGATION ---
             const pages = document.querySelectorAll('.page');
@@ -567,14 +633,14 @@
             const renderMessages = () => {
                 const chatBox = document.getElementById('chat-messages');
                 chatBox.innerHTML = DB.messages.map(msg => {
-                    const isMe = msg.userId === userId;
+                    const isMe = msg.user === loggedInUser;
                     return `
                         <div class="flex ${isMe ? 'justify-end' : 'justify-start'}">
                             <div class="max-w-xs md:max-w-md">
                                 <div class="px-4 py-3 rounded-xl ${isMe ? 'chat-bubble-me' : 'chat-bubble-other'}">
                                     <p class="text-sm">${msg.text}</p>
                                 </div>
-                                <p class="text-xs text-gray-400 mt-1 px-1 ${isMe ? 'text-right' : 'text-left'}">User ${msg.userId.substring(0,6)}... at ${formatTime(msg.timestamp)}</p>
+                                <p class="text-xs text-gray-400 mt-1 px-1 ${isMe ? 'text-right' : 'text-left'}">${msg.user} at ${formatTime(msg.timestamp)}</p>
                             </div>
                         </div>
                     `;
@@ -592,7 +658,7 @@
                             <label class="ml-3 block text-sm font-medium ${goal.status === 'complete' ? 'text-gray-500 line-through' : 'text-gray-900'}">${goal.text}</label>
                         </div>
                         <div class="flex items-center">
-                            <span class="text-xs text-gray-400 mr-4">by User ${goal.userId.substring(0,6)}...</span>
+                            <span class="text-xs text-gray-400 mr-4">by ${goal.user}</span>
                             <button class="delete-goal-btn text-red-500 hover:text-red-700" data-id="${goal.id}">&times;</button>
                         </div>
                     </div>
@@ -616,7 +682,7 @@
                         name: form.name.value, sku: form.sku.value,
                         price: parseFloat(form.price.value), stock: parseInt(form.stock.value)
                     };
-                    await addDoc(collection(db, `artifacts/${appId}/users/${userId}/products`), newProduct);
+                    await addDoc(collection(db, `artifacts/${appId}/users/${firebaseUserId}/products`), newProduct);
                     showToast('Product added successfully.');
                     return true;
                 });
@@ -634,14 +700,14 @@
                             name: form.name.value, sku: form.sku.value,
                             price: parseFloat(form.price.value), stock: parseInt(form.stock.value)
                         };
-                        await setDoc(doc(db, `artifacts/${appId}/users/${userId}/products`, id), updatedProduct);
+                        await setDoc(doc(db, `artifacts/${appId}/users/${firebaseUserId}/products`, id), updatedProduct);
                         showToast('Product updated.');
                         return true;
                     });
                 }
                 if (e.target.classList.contains('delete-product-btn')) {
                     showConfirmationModal('Delete Product', 'Are you sure you want to delete this product?', async () => {
-                        await deleteDoc(doc(db, `artifacts/${appId}/users/${userId}/products`, id));
+                        await deleteDoc(doc(db, `artifacts/${appId}/users/${firebaseUserId}/products`, id));
                         showToast('Product deleted.');
                     });
                 }
@@ -655,7 +721,7 @@
                         clientName: form.clientName.value, contactPerson: form.contactPerson.value,
                         email: form.email.value, phone: form.phone.value
                     };
-                    await addDoc(collection(db, `artifacts/${appId}/users/${userId}/clients`), newClient);
+                    await addDoc(collection(db, `artifacts/${appId}/users/${firebaseUserId}/clients`), newClient);
                     showToast('Client added successfully.');
                     return true;
                 });
@@ -673,14 +739,14 @@
                             clientName: form.clientName.value, contactPerson: form.contactPerson.value,
                             email: form.email.value, phone: form.phone.value
                         };
-                        await setDoc(doc(db, `artifacts/${appId}/users/${userId}/clients`, id), updatedClient);
+                        await setDoc(doc(db, `artifacts/${appId}/users/${firebaseUserId}/clients`, id), updatedClient);
                         showToast('Client updated.');
                         return true;
                     });
                 }
                 if (e.target.classList.contains('delete-client-btn')) {
                     showConfirmationModal('Delete Client', 'Are you sure you want to delete this client?', async () => {
-                        await deleteDoc(doc(db, `artifacts/${appId}/users/${userId}/clients`, id));
+                        await deleteDoc(doc(db, `artifacts/${appId}/users/${firebaseUserId}/clients`, id));
                         showToast('Client deleted.');
                     });
                 }
@@ -765,12 +831,12 @@
                 
                 // Use a batch write to add order and update stock atomically
                 const batch = writeBatch(db);
-                const orderRef = doc(collection(db, `artifacts/${appId}/users/${userId}/orders`));
+                const orderRef = doc(collection(db, `artifacts/${appId}/users/${firebaseUserId}/orders`));
                 batch.set(orderRef, newOrder);
 
                 if (status !== 'Draft') {
                     currentOrderItems.forEach(item => {
-                        const productRef = doc(db, `artifacts/${appId}/users/${userId}/products`, item.productId);
+                        const productRef = doc(db, `artifacts/${appId}/users/${firebaseUserId}/products`, item.productId);
                         const product = DB.products.find(p => p.id === item.productId);
                         const newStock = product.stock - item.quantity;
                         batch.update(productRef, { stock: newStock });
@@ -809,7 +875,7 @@
                     document.getElementById('invoice-status-changer').addEventListener('change', async (e) => {
                         const newStatus = e.target.value;
                         const orderId = e.target.dataset.orderId;
-                        await updateDoc(doc(db, `artifacts/${appId}/users/${userId}/orders`, orderId), { status: newStatus });
+                        await updateDoc(doc(db, `artifacts/${appId}/users/${firebaseUserId}/orders`, orderId), { status: newStatus });
                         showToast(`Order #${orderId} status changed to ${newStatus}.`);
                     });
                 }
@@ -820,7 +886,7 @@
                 e.preventDefault();
                 const text = e.target.querySelector('#message-input').value;
                 if(text.trim()) {
-                    await addDoc(collection(db, `artifacts/${appId}/public/data/messages`), { userId, text: text.trim(), timestamp: serverTimestamp() });
+                    await addDoc(collection(db, `artifacts/${appId}/public/data/messages`), { user: loggedInUser, text: text.trim(), timestamp: serverTimestamp() });
                     e.target.reset();
                 }
             });
@@ -829,7 +895,7 @@
                 e.preventDefault();
                 const text = e.target.querySelector('#goal-input').value;
                 if (text.trim()) {
-                    await addDoc(collection(db, `artifacts/${appId}/public/data/goals`), { userId, text: text.trim(), status: 'incomplete' });
+                    await addDoc(collection(db, `artifacts/${appId}/public/data/goals`), { user: loggedInUser, text: text.trim(), status: 'incomplete' });
                     e.target.reset();
                 }
             });
@@ -853,12 +919,16 @@
 
             // --- FIRESTORE REAL-TIME LISTENERS ---
             function setupRealtimeListeners() {
-                if (!userId) return;
+                if (!firebaseUserId) return;
+                
+                // Clear existing listeners before setting up new ones
+                unsubscribeListeners.forEach(unsub => unsub());
+                unsubscribeListeners = [];
 
                 // --- User-specific data listeners ---
                 const collections = ['products', 'clients', 'orders'];
                 collections.forEach(col => {
-                    const q = query(collection(db, `artifacts/${appId}/users/${userId}/${col}`));
+                    const q = query(collection(db, `artifacts/${appId}/users/${firebaseUserId}/${col}`));
                     const unsubscribe = onSnapshot(q, (snapshot) => {
                         DB[col] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                         // Trigger renders based on which collection updated
