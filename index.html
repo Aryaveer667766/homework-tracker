@@ -22,9 +22,13 @@ th{background:#f2f2f2}
 .chat-messages{height:200px;overflow-y:auto;border:1px solid #ccc;padding:0.5rem;background:#fafafa;margin-bottom:0.5rem;border-radius:6px}
 .message{padding:0.3rem 0;border-bottom:1px solid #eee}
 .goal-item{padding:0.4rem;border-bottom:1px solid #eee}
+#notification{position:fixed;top:20px;right:20px;background:#222;color:#fff;padding:1rem 1.5rem;border-radius:8px;opacity:0;pointer-events:none;transition:all 0.4s ease;z-index:999}
+#notification.show{opacity:1;pointer-events:auto}
 </style>
 </head>
 <body>
+
+<div id="notification"></div>
 
 <div id="login-page">
   <div class="login-box">
@@ -114,6 +118,7 @@ const dashboard = document.getElementById('dashboard');
 const loginBtn = document.getElementById('loginBtn');
 const logoutBtn = document.getElementById('logoutBtn');
 const loginMsg = document.getElementById('loginMsg');
+const notification = document.getElementById('notification');
 let currentUser = null;
 
 const users = {
@@ -121,6 +126,13 @@ const users = {
   aryaveer: "arya@swadishth",
   aryan: "aryan@swadishth"
 };
+
+// --- Notification helper ---
+function showNotification(msg) {
+  notification.textContent = msg;
+  notification.classList.add('show');
+  setTimeout(()=>notification.classList.remove('show'),5000);
+}
 
 function showDashboard() {
   loginPage.style.display = 'none';
@@ -211,6 +223,7 @@ function loadGoals(){
       div.className="goal-item";
       div.innerHTML=`${g.text} ${g.by?`<small>(${g.by})</small>`:""}`;
       goalsList.appendChild(div);
+      if(g.by!==currentUser) showNotification(`🎯 New Goal: ${g.text} by ${g.by}`);
     });
   });
 }
@@ -236,6 +249,7 @@ onValue(ref(db,"chat/"),(snapshot)=>{
     div.className="message";
     div.innerHTML=`<b>${msg.user}:</b> ${msg.text}`;
     chatMessages.appendChild(div);
+    if(msg.user!==currentUser) showNotification(`💬 ${msg.user}: ${msg.text}`);
   });
   chatMessages.scrollTop=chatMessages.scrollHeight;
 });
@@ -250,4 +264,3 @@ sendMessageBtn.onclick=()=>{
 </script>
 </body>
 </html>
-
