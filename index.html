@@ -1,266 +1,243 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Swadishth Business Manager</title>
-<style>
-*{box-sizing:border-box;font-family:'Poppins',sans-serif}
-body{margin:0;background:#f8f8f8;color:#222}
-header{background:#d34d2d;color:#fff;padding:1rem 2rem;display:flex;justify-content:space-between;align-items:center}
-header h1{margin:0;font-size:1.2rem}
-button{background:#d34d2d;color:white;border:none;padding:0.6rem 1rem;border-radius:6px;cursor:pointer}
-button:hover{background:#b03e24}
-.container{padding:1rem 2rem}
-#login-page,#dashboard{display:none}
-.login-box{max-width:350px;margin:10vh auto;background:white;padding:2rem;border-radius:10px;box-shadow:0 2px 10px rgba(0,0,0,0.1)}
-input,select,textarea{width:100%;padding:0.6rem;margin:0.4rem 0;border:1px solid #ccc;border-radius:6px}
-.order-form,.goal-form,.chat-box{background:white;padding:1rem;border-radius:8px;box-shadow:0 2px 5px rgba(0,0,0,0.1);margin-bottom:1rem}
-table{width:100%;border-collapse:collapse;margin-top:1rem}
-th,td{border-bottom:1px solid #ddd;padding:0.5rem;text-align:left;font-size:0.9rem}
-th{background:#f2f2f2}
-.chat-messages{height:200px;overflow-y:auto;border:1px solid #ccc;padding:0.5rem;background:#fafafa;margin-bottom:0.5rem;border-radius:6px}
-.message{padding:0.3rem 0;border-bottom:1px solid #eee}
-.goal-item{padding:0.4rem;border-bottom:1px solid #eee}
-#notification{position:fixed;top:20px;right:20px;background:#222;color:#fff;padding:1rem 1.5rem;border-radius:8px;opacity:0;pointer-events:none;transition:all 0.4s ease;z-index:999}
-#notification.show{opacity:1;pointer-events:auto}
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Swadishth Business Manager</title>
+  <style>
+    body {
+      font-family: "Poppins", sans-serif;
+      background: #fff7ef;
+      margin: 0;
+      padding: 0;
+    }
+    .login, .dashboard { display: none; }
+    .active { display: block; }
+    .login {
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: linear-gradient(135deg, #ffb347, #ffcc33);
+    }
+    .login-box {
+      background: white;
+      padding: 2rem;
+      border-radius: 20px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+      width: 320px;
+      text-align: center;
+    }
+    .login-box h2 {
+      color: #e67e22;
+      margin-bottom: 1rem;
+    }
+    input {
+      width: 100%;
+      padding: 0.6rem;
+      margin: 0.5rem 0;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+    }
+    button {
+      background: #e67e22;
+      color: white;
+      border: none;
+      padding: 0.7rem 1.2rem;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+    button:hover { background: #d35400; }
+
+    /* Dashboard styling */
+    .dashboard {
+      display: flex;
+      height: 100vh;
+    }
+    .sidebar {
+      width: 220px;
+      background: #e67e22;
+      color: white;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .sidebar h2 {
+      text-align: center;
+      margin-bottom: 1rem;
+    }
+    .sidebar button {
+      background: rgba(255,255,255,0.2);
+      margin: 0.3rem 0;
+    }
+    .content {
+      flex: 1;
+      padding: 1.5rem;
+      overflow-y: auto;
+    }
+    .section {
+      display: none;
+    }
+    .section.active {
+      display: block;
+    }
+    .chat-box {
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      padding: 1rem;
+      height: 400px;
+      display: flex;
+      flex-direction: column;
+    }
+    .messages {
+      flex: 1;
+      overflow-y: auto;
+      margin-bottom: 1rem;
+    }
+    .message {
+      margin-bottom: 0.5rem;
+      background: #f9f9f9;
+      padding: 0.5rem;
+      border-radius: 8px;
+    }
+  </style>
 </head>
 <body>
 
-<div id="notification"></div>
-
-<div id="login-page">
-  <div class="login-box">
-    <h2>Swadishth Login</h2>
-    <input type="text" id="username" placeholder="Username" />
-    <input type="password" id="password" placeholder="Password" />
-    <button id="loginBtn">Login</button>
-    <p id="loginMsg" style="color:red;margin-top:10px;"></p>
-  </div>
-</div>
-
-<div id="dashboard">
-  <header>
-    <h1>Swadishth Business Manager</h1>
-    <button id="logoutBtn">Logout</button>
-  </header>
-
-  <div class="container">
-    <!-- Order Form -->
-    <div class="order-form">
-      <h3>Add New Order</h3>
-      <input id="customerName" placeholder="Customer Name" />
-      <input id="customerPhone" placeholder="Phone Number" />
-      <textarea id="items" placeholder="Items Ordered"></textarea>
-      <input id="amount" type="number" placeholder="Total Amount (₹)" />
-      <select id="paymentStatus">
-        <option value="Pending">Pending</option>
-        <option value="Paid">Paid</option>
-      </select>
-      <select id="deliveryStatus">
-        <option value="Not Delivered">Not Delivered</option>
-        <option value="Delivered">Delivered</option>
-      </select>
-      <textarea id="notes" placeholder="Additional Notes"></textarea>
-      <button id="addOrderBtn">Add Order</button>
-    </div>
-
-    <table id="ordersTable">
-      <thead>
-        <tr>
-          <th>#</th><th>Customer</th><th>Phone</th><th>Items</th>
-          <th>Amount</th><th>Payment</th><th>Delivery</th><th>Notes</th><th>Actions</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-
-    <!-- Goals Section -->
-    <div class="goal-form">
-      <h3>Team Goals</h3>
-      <input id="goalInput" placeholder="Enter new goal" />
-      <button id="addGoalBtn">Add Goal</button>
-      <div id="goalsList"></div>
-    </div>
-
-    <!-- Chat Section -->
-    <div class="chat-box">
-      <h3>Team Chat 💬</h3>
-      <div class="chat-messages" id="chatMessages"></div>
-      <input id="chatMessage" placeholder="Type your message..." />
-      <button id="sendMessageBtn">Send</button>
+  <!-- LOGIN PAGE -->
+  <div class="login active" id="loginPage">
+    <div class="login-box">
+      <h2>Swadishth Login</h2>
+      <input type="text" id="username" placeholder="Username" />
+      <input type="password" id="password" placeholder="Password" />
+      <button onclick="login()">Login</button>
+      <p id="loginError" style="color:red;"></p>
     </div>
   </div>
-</div>
 
-<!-- Firebase -->
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
-import { getDatabase, ref, push, onValue, set } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js";
+  <!-- DASHBOARD -->
+  <div class="dashboard" id="dashboard">
+    <div class="sidebar">
+      <div>
+        <h2>Swadishth</h2>
+        <button onclick="showSection('orders')">📦 Orders</button>
+        <button onclick="showSection('clients')">👥 Clients</button>
+        <button onclick="showSection('goals')">🎯 Goals</button>
+        <button onclick="showSection('chat')">💬 Group Chat</button>
+      </div>
+      <button onclick="logout()">🚪 Logout</button>
+    </div>
+    <div class="content">
+      <div id="orders" class="section active">
+        <h2>📦 Manage Orders</h2>
+        <textarea id="ordersList" rows="10" style="width:100%" placeholder="Add or view offline orders here..."></textarea>
+      </div>
+      <div id="clients" class="section">
+        <h2>👥 Manage Clients</h2>
+        <textarea id="clientsList" rows="10" style="width:100%" placeholder="Add or view clients here..."></textarea>
+      </div>
+      <div id="goals" class="section">
+        <h2>🎯 Team Goals</h2>
+        <textarea id="goalsList" rows="10" style="width:100%" placeholder="Set and track goals here..."></textarea>
+      </div>
+      <div id="chat" class="section">
+        <h2>💬 Group Chat</h2>
+        <div class="chat-box">
+          <div class="messages" id="messages"></div>
+          <input type="text" id="chatInput" placeholder="Type a message..." />
+          <button onclick="sendMessage()">Send</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
-const firebaseConfig = {
-  apiKey: "AIzaSyBRwSrbSvrFAW5dTyQN0BoRHS3_6iLrV_E",
-  authDomain: "homeworkbrothers-12345.firebaseapp.com",
-  projectId: "homeworkbrothers-12345",
-  storageBucket: "homeworkbrothers-12345.firebasestorage.app",
-  messagingSenderId: "77683184454",
-  appId: "1:77683184454:web:9b0bc1e8e5028943a3cb47",
-  measurementId: "G-21XLQGRZJ0",
-  databaseURL: "https://homeworkbrothers-12345-default-rtdb.asia-southeast1.firebasedatabase.app/"
-};
+  <script type="module">
+    // --- FIREBASE INIT ---
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+    import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
+    const firebaseConfig = {
+      apiKey: "AIzaSyBRwSrbSvrFAW5dTyQN0BoRHS3_6iLrV_E",
+      authDomain: "homeworkbrothers-12345.firebaseapp.com",
+      projectId: "homeworkbrothers-12345",
+      storageBucket: "homeworkbrothers-12345.firebasestorage.app",
+      messagingSenderId: "77683184454",
+      appId: "1:77683184454:web:9b0bc1e8e5028943a3cb47",
+      measurementId: "G-21XLQGRZJ0"
+    };
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
 
-const loginPage = document.getElementById('login-page');
-const dashboard = document.getElementById('dashboard');
-const loginBtn = document.getElementById('loginBtn');
-const logoutBtn = document.getElementById('logoutBtn');
-const loginMsg = document.getElementById('loginMsg');
-const notification = document.getElementById('notification');
-let currentUser = null;
+    // --- LOGIN SYSTEM ---
+    const users = {
+      sahil: "sahil@swadishth",
+      aryaveer: "arya@swadishth",
+      aryan: "aryan@swadishth"
+    };
 
-const users = {
-  sahil: "sahil@swadishth",
-  aryaveer: "arya@swadishth",
-  aryan: "aryan@swadishth"
-};
+    window.login = function() {
+      const user = document.getElementById("username").value.trim().toLowerCase();
+      const pass = document.getElementById("password").value.trim();
+      const error = document.getElementById("loginError");
 
-// --- Notification helper ---
-function showNotification(msg) {
-  notification.textContent = msg;
-  notification.classList.add('show');
-  setTimeout(()=>notification.classList.remove('show'),5000);
-}
+      if (users[user] && users[user] === pass) {
+        localStorage.setItem("swadishthUser", user);
+        document.getElementById("loginPage").classList.remove("active");
+        document.getElementById("dashboard").classList.add("active");
+        currentUser = user;
+      } else {
+        error.textContent = "Invalid credentials!";
+      }
+    };
 
-function showDashboard() {
-  loginPage.style.display = 'none';
-  dashboard.style.display = 'block';
-  loadOrders();
-  loadGoals();
-}
+    window.logout = function() {
+      localStorage.removeItem("swadishthUser");
+      location.reload();
+    };
 
-loginBtn.onclick = () => {
-  const u = username.value.trim();
-  const p = password.value.trim();
-  if ((u==="sahil" && p==="sahil@swadishth")||(u==="aryaveer"&&p==="arya@swadishth")||(u==="aryan"&&p==="aryan@swadishth")) {
-    currentUser = u;
-    localStorage.setItem("user", u);
-    showDashboard();
-  } else loginMsg.innerText = "Invalid credentials!";
-};
+    // Restore session
+    let currentUser = localStorage.getItem("swadishthUser");
+    if (currentUser) {
+      document.getElementById("loginPage").classList.remove("active");
+      document.getElementById("dashboard").classList.add("active");
+    }
 
-logoutBtn.onclick = () => {
-  localStorage.removeItem("user");
-  location.reload();
-};
+    // --- NAVIGATION ---
+    window.showSection = function(id) {
+      document.querySelectorAll(".section").forEach(sec => sec.classList.remove("active"));
+      document.getElementById(id).classList.add("active");
+    };
 
-if(localStorage.getItem("user")){
-  currentUser = localStorage.getItem("user");
-  showDashboard();
-}
+    // --- CHAT SYSTEM ---
+    const msgRef = collection(db, "swadishth_chat");
+    window.sendMessage = async function() {
+      const input = document.getElementById("chatInput");
+      const text = input.value.trim();
+      if (!text || !currentUser) return;
+      await addDoc(msgRef, {
+        user: currentUser,
+        text,
+        time: serverTimestamp()
+      });
+      input.value = "";
+    };
 
-/* ------------------ Orders Section -------------------- */
-let orders = JSON.parse(localStorage.getItem("orders") || "[]");
-const ordersTableBody = document.querySelector("#ordersTable tbody");
-
-function loadOrders(){
-  ordersTableBody.innerHTML="";
-  orders.forEach((o,i)=>{
-    const tr=document.createElement("tr");
-    tr.innerHTML=`
-      <td>${i+1}</td><td>${o.name}</td><td>${o.phone}</td>
-      <td>${o.items}</td><td>₹${o.amount}</td>
-      <td>${o.payment}</td><td>${o.delivery}</td><td>${o.notes}</td>
-      <td><button onclick="editOrder(${i})">✏</button>
-      <button onclick="deleteOrder(${i})">🗑</button></td>`;
-    ordersTableBody.appendChild(tr);
-  });
-}
-window.editOrder = (i)=>{
-  const o=orders[i];
-  customerName.value=o.name;
-  customerPhone.value=o.phone;
-  items.value=o.items;
-  amount.value=o.amount;
-  paymentStatus.value=o.payment;
-  deliveryStatus.value=o.delivery;
-  notes.value=o.notes;
-  deleteOrder(i);
-};
-window.deleteOrder = (i)=>{
-  orders.splice(i,1);
-  localStorage.setItem("orders",JSON.stringify(orders));
-  loadOrders();
-};
-addOrderBtn.onclick=()=>{
-  const order={
-    name:customerName.value,phone:customerPhone.value,
-    items:items.value,amount:amount.value,payment:paymentStatus.value,
-    delivery:deliveryStatus.value,notes:notes.value
-  };
-  if(order.name && order.amount){
-    orders.push(order);
-    localStorage.setItem("orders",JSON.stringify(orders));
-    loadOrders();
-    customerName.value=customerPhone.value=items.value=amount.value=notes.value="";
-  }else alert("Please fill required fields");
-};
-
-/* ------------------ Goals Section -------------------- */
-const goalInput=document.getElementById("goalInput");
-const goalsList=document.getElementById("goalsList");
-const addGoalBtn=document.getElementById("addGoalBtn");
-
-function loadGoals(){
-  onValue(ref(db,"goals/"),(snapshot)=>{
-    const data=snapshot.val()||{};
-    goalsList.innerHTML="";
-    Object.keys(data).forEach((id)=>{
-      const g=data[id];
-      const div=document.createElement("div");
-      div.className="goal-item";
-      div.innerHTML=`${g.text} ${g.by?`<small>(${g.by})</small>`:""}`;
-      goalsList.appendChild(div);
-      if(g.by!==currentUser) showNotification(`🎯 New Goal: ${g.text} by ${g.by}`);
+    const q = query(msgRef, orderBy("time", "asc"));
+    onSnapshot(q, (snapshot) => {
+      const box = document.getElementById("messages");
+      box.innerHTML = "";
+      snapshot.forEach(doc => {
+        const msg = doc.data();
+        const div = document.createElement("div");
+        div.className = "message";
+        div.textContent = `${msg.user}: ${msg.text}`;
+        box.appendChild(div);
+      });
+      box.scrollTop = box.scrollHeight;
     });
-  });
-}
-addGoalBtn.onclick=()=>{
-  const text=goalInput.value.trim();
-  if(text){
-    push(ref(db,"goals/"),{text,by:currentUser});
-    goalInput.value="";
-  }
-};
+  </script>
 
-/* ------------------ Chat Section -------------------- */
-const chatMessages=document.getElementById("chatMessages");
-const chatMessage=document.getElementById("chatMessage");
-const sendMessageBtn=document.getElementById("sendMessageBtn");
-
-onValue(ref(db,"chat/"),(snapshot)=>{
-  const data=snapshot.val()||{};
-  chatMessages.innerHTML="";
-  Object.keys(data).forEach(id=>{
-    const msg=data[id];
-    const div=document.createElement("div");
-    div.className="message";
-    div.innerHTML=`<b>${msg.user}:</b> ${msg.text}`;
-    chatMessages.appendChild(div);
-    if(msg.user!==currentUser) showNotification(`💬 ${msg.user}: ${msg.text}`);
-  });
-  chatMessages.scrollTop=chatMessages.scrollHeight;
-});
-
-sendMessageBtn.onclick=()=>{
-  const text=chatMessage.value.trim();
-  if(text){
-    push(ref(db,"chat/"),{text,user:currentUser,time:Date.now()});
-    chatMessage.value="";
-  }
-};
-</script>
 </body>
 </html>
