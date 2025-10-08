@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Swadishth Sales Hub</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -47,6 +48,27 @@
             background-color: #e5e7eb; /* gray-200 */
             color: #1f2937; /* gray-800 */
             border-bottom-left-radius: 0;
+        }
+        /* Print Styles */
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #invoice-printable, #invoice-printable * {
+                visibility: visible;
+            }
+            #invoice-printable {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                margin: 0;
+                padding: 0;
+            }
+            /* Hide modal-specific action buttons when printing */
+            #receipt-actions, #invoice-actions {
+                display: none !important;
+            }
         }
     </style>
 </head>
@@ -106,6 +128,10 @@
                     <svg class="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
                     Products
                 </a>
+                 <a href="#suppliers" class="nav-link flex items-center px-6 py-3 text-gray-700 hover:bg-gray-100">
+                    <svg class="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z"></path></svg>
+                    Suppliers
+                </a>
             </nav>
         </aside>
 
@@ -129,42 +155,61 @@
                     <!-- Stat Cards -->
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                         <div class="bg-white p-6 rounded-lg shadow-sm">
-                            <h3 class="text-sm font-medium text-gray-500">Today's Revenue (Offline)</h3>
+                            <h3 class="text-sm font-medium text-gray-500">Today's Revenue</h3>
                             <p id="stat-revenue" class="text-3xl font-bold text-gray-900 mt-2">₹0.00</p>
                         </div>
                          <div class="bg-white p-6 rounded-lg shadow-sm">
-                            <h3 class="text-sm font-medium text-gray-500">Outstanding Invoices</h3>
-                            <p id="stat-outstanding" class="text-3xl font-bold text-gray-900 mt-2">₹0.00</p>
+                            <h3 class="text-sm font-medium text-gray-500">Today's Profit</h3>
+                            <p id="stat-profit" class="text-3xl font-bold text-green-600 mt-2">₹0.00</p>
                         </div>
                         <div class="bg-white p-6 rounded-lg shadow-sm">
                             <h3 class="text-sm font-medium text-gray-500">New Orders (Today)</h3>
                             <p id="stat-orders" class="text-3xl font-bold text-gray-900 mt-2">0</p>
                         </div>
                         <div class="bg-white p-6 rounded-lg shadow-sm">
-                            <h3 class="text-sm font-medium text-gray-500">Total Clients</h3>
-                            <p id="stat-clients" class="text-3xl font-bold text-gray-900 mt-2">0</p>
+                            <h3 class="text-sm font-medium text-gray-500">Outstanding Invoices</h3>
+                            <p id="stat-outstanding" class="text-3xl font-bold text-red-600 mt-2">₹0.00</p>
                         </div>
                     </div>
 
-                    <!-- Recent Orders -->
-                    <div class="mt-8 bg-white p-6 rounded-lg shadow-sm">
-                        <h3 class="text-lg font-semibold text-gray-800 mb-4">Recent Activity</h3>
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-left">
-                                <thead>
-                                    <tr class="border-b">
-                                        <th class="py-2 px-4 font-medium text-gray-500">Order ID</th>
-                                        <th class="py-2 px-4 font-medium text-gray-500">Client</th>
-                                        <th class="py-2 px-4 font-medium text-gray-500">Amount</th>
-                                        <th class="py-2 px-4 font-medium text-gray-500">Status</th>
-                                        <th class="py-2 px-4 font-medium text-gray-500">Date</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="recent-orders-table">
-                                    <!-- Populated by JS -->
-                                    <tr><td colspan="5" class="text-center py-8 text-gray-500">No recent orders.</td></tr>
-                                </tbody>
-                            </table>
+                    <!-- Charts -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
+                        <div class="bg-white p-6 rounded-lg shadow-sm">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-4">Weekly Sales</h3>
+                            <canvas id="sales-chart"></canvas>
+                        </div>
+                        <div class="bg-white p-6 rounded-lg shadow-sm">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-4">Best Selling Products</h3>
+                            <canvas id="products-chart"></canvas>
+                        </div>
+                    </div>
+
+                     <!-- Low Stock & Recent Orders -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
+                        <div class="bg-white p-6 rounded-lg shadow-sm">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-4">Low Stock Alerts</h3>
+                            <div id="low-stock-list" class="space-y-2 max-h-64 overflow-y-auto">
+                                <!-- JS Populated -->
+                            </div>
+                        </div>
+                        <div class="bg-white p-6 rounded-lg shadow-sm">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-4">Recent Activity</h3>
+                             <div class="overflow-x-auto">
+                                <table class="w-full text-left">
+                                    <thead>
+                                        <tr class="border-b">
+                                            <th class="py-2 px-4 font-medium text-gray-500">Order ID</th>
+                                            <th class="py-2 px-4 font-medium text-gray-500">Client</th>
+                                            <th class="py-2 px-4 font-medium text-gray-500">Amount</th>
+                                            <th class="py-2 px-4 font-medium text-gray-500">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="recent-orders-table">
+                                        <!-- Populated by JS -->
+                                        <tr><td colspan="4" class="text-center py-8 text-gray-500">No recent orders.</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -198,7 +243,6 @@
                 </div>
                 
                 <div id="new-order" class="page hidden">
-                    <!-- New Order Form -->
                     <div class="bg-white p-6 rounded-lg shadow-sm">
                         <h3 class="text-xl font-semibold mb-6">Create New Manual Order</h3>
                         <form id="new-order-form" class="space-y-6">
@@ -208,8 +252,6 @@
                                     <option value="">-- Choose a client --</option>
                                 </select>
                             </div>
-
-                            <!-- Add Items Section -->
                             <div class="border-t border-b border-gray-200 py-6">
                                 <h4 class="text-lg font-medium mb-4">Order Items</h4>
                                 <div class="flex items-end gap-4">
@@ -224,16 +266,12 @@
                                     <button type="button" id="add-item-btn" class="px-4 py-2 bg-indigo-600 text-white rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">Add Item</button>
                                 </div>
                             </div>
-                            
-                            <!-- Current Order Items -->
                             <div id="current-order-items-container">
                                 <table class="w-full text-left">
                                     <thead><tr class="border-b"><th class="py-2 px-2">Product</th><th class="py-2 px-2">Qty</th><th class="py-2 px-2">Price</th><th class="py-2 px-2">Total</th><th class="py-2 px-2"></th></tr></thead>
                                     <tbody id="current-order-items"></tbody>
                                 </table>
                             </div>
-                            
-                            <!-- Order Summary -->
                             <div class="flex justify-end mt-6">
                                 <div class="w-full max-w-sm space-y-3">
                                     <div class="flex justify-between items-center"><span class="text-gray-600">Subtotal:</span> <span id="order-subtotal" class="font-semibold">₹0.00</span></div>
@@ -244,8 +282,6 @@
                                     <div class="flex justify-between items-center text-xl font-bold border-t pt-3"><span class="text-gray-800">Total:</span> <span id="order-total" class="text-indigo-600">₹0.00</span></div>
                                 </div>
                             </div>
-
-                            <!-- Payment and Status -->
                              <div class="border-t pt-6 space-y-4">
                                 <div>
                                     <label for="order-status" class="block text-sm font-medium text-gray-700">Order Status</label>
@@ -256,8 +292,6 @@
                                     </select>
                                 </div>
                             </div>
-
-                            <!-- Actions -->
                             <div class="flex justify-end gap-4 border-t pt-6">
                                 <button type="button" id="clear-order-btn" class="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-md shadow-sm hover:bg-gray-50">Clear</button>
                                 <button type="submit" class="px-6 py-2 bg-green-600 text-white rounded-md shadow-sm hover:bg-green-700">Create Order</button>
@@ -268,13 +302,20 @@
                 
                 <div id="orders" class="page hidden">
                      <div class="bg-white p-6 rounded-lg shadow-sm">
-                        <h3 class="text-xl font-semibold mb-4">All Orders</h3>
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-xl font-semibold">All Orders</h3>
+                             <div class="flex items-center gap-4">
+                                <input type="text" id="orders-search" placeholder="Search orders..." class="w-64 block rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                                <button id="export-orders-btn" class="px-4 py-2 bg-green-600 text-white rounded-md shadow-sm hover:bg-green-700">Export CSV</button>
+                            </div>
+                        </div>
                         <div class="overflow-x-auto">
                            <table class="w-full text-left">
                                <thead><tr class="border-b"><th class="py-2 px-4">ID</th><th class="py-2 px-4">Client</th><th class="py-2 px-4">Date</th><th class="py-2 px-4">Total</th><th class="py-2 px-4">Status</th><th class="py-2 px-4">Actions</th></tr></thead>
                                <tbody id="all-orders-table"></tbody>
                            </table>
                         </div>
+                        <div id="orders-pagination" class="mt-4 flex justify-end items-center gap-2"></div>
                     </div>
                 </div>
 
@@ -282,7 +323,11 @@
                     <div class="bg-white p-6 rounded-lg shadow-sm">
                         <div class="flex justify-between items-center mb-4">
                             <h3 class="text-xl font-semibold">Clients</h3>
-                            <button id="add-client-btn" class="px-4 py-2 bg-indigo-600 text-white rounded-md shadow-sm hover:bg-indigo-700">Add New Client</button>
+                             <div class="flex items-center gap-4">
+                                <input type="text" id="clients-search" placeholder="Search clients..." class="w-64 block rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                                <button id="export-clients-btn" class="px-4 py-2 bg-green-600 text-white rounded-md shadow-sm hover:bg-green-700">Export CSV</button>
+                                <button id="add-client-btn" class="px-4 py-2 bg-indigo-600 text-white rounded-md shadow-sm hover:bg-indigo-700">Add New Client</button>
+                            </div>
                         </div>
                         <div class="overflow-x-auto">
                            <table class="w-full text-left">
@@ -290,19 +335,40 @@
                                <tbody id="clients-table"></tbody>
                            </table>
                         </div>
+                        <div id="clients-pagination" class="mt-4 flex justify-end items-center gap-2"></div>
                     </div>
                 </div>
 
                 <div id="products" class="page hidden">
                     <div class="bg-white p-6 rounded-lg shadow-sm">
-                        <div class="flex justify-between items-center mb-4">
+                         <div class="flex justify-between items-center mb-4">
                             <h3 class="text-xl font-semibold">Products</h3>
-                            <button id="add-product-btn" class="px-4 py-2 bg-indigo-600 text-white rounded-md shadow-sm hover:bg-indigo-700">Add New Product</button>
+                             <div class="flex items-center gap-4">
+                                <input type="text" id="products-search" placeholder="Search products..." class="w-64 block rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                                <button id="export-products-btn" class="px-4 py-2 bg-green-600 text-white rounded-md shadow-sm hover:bg-green-700">Export CSV</button>
+                                <button id="add-product-btn" class="px-4 py-2 bg-indigo-600 text-white rounded-md shadow-sm hover:bg-indigo-700">Add New Product</button>
+                            </div>
                         </div>
                         <div class="overflow-x-auto">
                            <table class="w-full text-left">
-                               <thead><tr class="border-b"><th class="py-2 px-4">Product Name</th><th class="py-2 px-4">SKU</th><th class="py-2 px-4">Price</th><th class="py-2 px-4">Stock</th><th class="py-2 px-4">Actions</th></tr></thead>
+                               <thead><tr class="border-b"><th class="py-2 px-4">Product Name</th><th class="py-2 px-4">Price</th><th class="py-2 px-4">Cost Price</th><th class="py-2 px-4">Stock</th><th class="py-2 px-4">Supplier</th><th class="py-2 px-4">Actions</th></tr></thead>
                                <tbody id="products-table"></tbody>
+                           </table>
+                        </div>
+                         <div id="products-pagination" class="mt-4 flex justify-end items-center gap-2"></div>
+                    </div>
+                </div>
+
+                <div id="suppliers" class="page hidden">
+                    <div class="bg-white p-6 rounded-lg shadow-sm">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-xl font-semibold">Suppliers</h3>
+                            <button id="add-supplier-btn" class="px-4 py-2 bg-indigo-600 text-white rounded-md shadow-sm hover:bg-indigo-700">Add New Supplier</button>
+                        </div>
+                        <div class="overflow-x-auto">
+                           <table class="w-full text-left">
+                               <thead><tr class="border-b"><th class="py-2 px-4">Supplier Name</th><th class="py-2 px-4">Contact Person</th><th class="py-2 px-4">Email</th><th class="py-2 px-4">Phone</th><th class="py-2 px-4">Actions</th></tr></thead>
+                               <tbody id="suppliers-table"></tbody>
                            </table>
                         </div>
                     </div>
@@ -323,22 +389,14 @@
     <script type="module">
         // Import Firebase modules
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signOut, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
         import { getFirestore, collection, onSnapshot, addDoc, doc, getDoc, setDoc, updateDoc, deleteDoc, query, where, orderBy, serverTimestamp, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
 
             // Your web app's Firebase configuration
-            const firebaseConfig = {
-                apiKey: "AIzaSyBRwSrbSvrFAW5dTyQN0BoRHS3_6iLrV_E",
-                authDomain: "homeworkbrothers-12345.firebaseapp.com",
-                projectId: "homeworkbrothers-12345",
-                storageBucket: "homeworkbrothers-12345.appspot.com",
-                messagingSenderId: "77683184454",
-                appId: "1:77683184454:web:9b0bc1e8e5028943a3cb47",
-                measurementId: "G-21XLQGRZJ0"
-            };
-            
+            const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+
             // Predefined users
             const USERS = {
                 sahil: 'sahil@swadishth',
@@ -355,8 +413,8 @@
             const db = getFirestore(app);
             
             let firebaseUserId = null;
-            let loggedInUser = null; // This will hold the custom username ('sahil', 'aryaveer', 'aryan')
-            let unsubscribeListeners = []; // To hold unsubscribe functions for cleanup on logout
+            let loggedInUser = null; 
+            let unsubscribeListeners = [];
 
             // --- STATE MANAGEMENT (local cache populated by Firestore) ---
             const DB = {
@@ -365,81 +423,153 @@
                 orders: [],
                 messages: [],
                 goals: [],
+                suppliers: [],
             };
+
+            const FilteredDB = {
+                products: [],
+                clients: [],
+                orders: [],
+            }
+
+            const Pagination = {
+                products: { currentPage: 1, itemsPerPage: 10 },
+                clients: { currentPage: 1, itemsPerPage: 10 },
+                orders: { currentPage: 1, itemsPerPage: 10 },
+            }
             
-            // --- AUTHENTICATION ---
+            // --- UI Elements ---
             const loginScreen = document.getElementById('login-screen');
             const appScreen = document.getElementById('app');
             const loginForm = document.getElementById('login-form');
             const logoutBtn = document.getElementById('logout-btn');
 
-            // Firebase auth state change listener
+            // --- FUNCTION DECLARATIONS ---
+            
+            function setupRealtimeListeners() {
+                if (!firebaseUserId) return;
+                
+                unsubscribeListeners.forEach(unsub => unsub());
+                unsubscribeListeners = [];
+
+                const publicCollections = ['products', 'clients', 'orders', 'messages', 'goals', 'suppliers'];
+                publicCollections.forEach(col => {
+                    let q;
+                    if (col === 'messages') {
+                        q = query(collection(db, `artifacts/${appId}/public/data/${col}`), orderBy('timestamp', 'asc'));
+                    } else {
+                        q = query(collection(db, `artifacts/${appId}/public/data/${col}`));
+                    }
+                    
+                    const unsubscribe = onSnapshot(q, (snapshot) => {
+                        DB[col] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+                        switch(col) {
+                            case 'products':
+                                renderProducts();
+                                populateOrderFormSelects();
+                                renderDashboard();
+                                break;
+                            case 'clients':
+                                renderClients();
+                                populateOrderFormSelects();
+                                renderDashboard();
+                                renderOrders();
+                                break;
+                            case 'orders':
+                                renderOrders();
+                                renderDashboard();
+                                break;
+                            case 'messages':
+                                renderMessages();
+                                break;
+                             case 'suppliers':
+                                renderSuppliers();
+                                break;
+                            case 'goals':
+                                renderGoals();
+                                break;
+                        }
+                    }, (error) => {
+                        console.error(`Error fetching ${col}: `, error);
+                    });
+                    unsubscribeListeners.push(unsubscribe);
+                });
+            }
+
+            function showApp() {
+                loggedInUser = localStorage.getItem('swadishth_loggedInUser');
+                if (!loggedInUser) {
+                    showLogin();
+                    return;
+                }
+                document.getElementById('current-user').textContent = loggedInUser;
+                loginScreen.style.display = 'none';
+                appScreen.style.display = 'flex';
+                setupRealtimeListeners();
+                showPage(window.location.hash || '#dashboard');
+            }
+
+            function showLogin() {
+                firebaseUserId = null;
+                loggedInUser = null;
+                localStorage.removeItem('swadishth_loggedInUser');
+                unsubscribeListeners.forEach(unsubscribe => unsubscribe());
+                unsubscribeListeners = [];
+                appScreen.style.display = 'none';
+                loginScreen.style.display = 'flex';
+            }
+
+            // --- AUTHENTICATION & APP INITIALIZATION ---
+
             onAuthStateChanged(auth, user => {
                 if (user) {
-                    firebaseUserId = user.uid; // We have an anonymous firebase user
-                    loggedInUser = localStorage.getItem('swadishth_loggedInUser'); // Check for our custom user
-
+                    firebaseUserId = user.uid; 
+                    loggedInUser = localStorage.getItem('swadishth_loggedInUser'); 
                     if (loggedInUser && USERS.hasOwnProperty(loggedInUser)) {
-                        // Both firebase auth and custom auth are present, setup the app
-                        loginScreen.style.display = 'none';
-                        appScreen.style.display = 'flex';
-                        document.getElementById('current-user').textContent = loggedInUser;
-                        setupRealtimeListeners();
-                        showPage(window.location.hash || '#dashboard');
+                        showApp();
                     } else {
-                        // If there's a lingering anonymous session without a custom login, sign out.
-                        signOut(auth);
+                        showLogin();
                     }
                 } else {
-                    // No firebase user, show login screen and clean up
-                    firebaseUserId = null;
-                    loggedInUser = null;
-                    localStorage.removeItem('swadishth_loggedInUser');
-                    loginScreen.style.display = 'flex';
-                    appScreen.style.display = 'none';
-                    unsubscribeListeners.forEach(unsubscribe => unsubscribe());
-                    unsubscribeListeners = [];
+                    showLogin();
                 }
             });
 
-
-            loginForm.addEventListener('submit', async (e) => {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (error) {
+                console.error("Firebase initial sign-in failed:", error);
+                const loginError = document.getElementById('login-error');
+                loginError.textContent = "Authentication service failed to initialize.";
+                loginError.classList.remove('hidden');
+                showLogin();
+            }
+            
+            loginForm.addEventListener('submit', (e) => {
                 e.preventDefault();
                 const username = e.target.username.value;
                 const password = e.target.password.value;
                 const loginError = document.getElementById('login-error');
                 loginError.classList.add('hidden');
                 
-                // Step 1: Validate against our predefined user list
                 if (USERS[username] === password) {
-                    // Step 2: Store the custom username
                     localStorage.setItem('swadishth_loggedInUser', username);
-                    
-                    // Step 3: Trigger Firebase anonymous sign-in.
-                    // The onAuthStateChanged listener will handle the rest.
-                    if (!auth.currentUser) {
-                        try {
-                            await signInAnonymously(auth);
-                        } catch (error) {
-                             console.error("Anonymous Sign In Error:", error);
-                             loginError.textContent = "Could not connect to the authentication service.";
-                             loginError.classList.remove('hidden');
-                             localStorage.removeItem('swadishth_loggedInUser');
-                        }
-                    } else {
-                        // If already signed in (e.g., from a failed custom login), just reload state
-                         location.reload(); 
-                    }
+                    showApp();
                 } else {
                     loginError.textContent = "Invalid username or password.";
                     loginError.classList.remove('hidden');
                 }
             });
             
-            // Handle logout
             logoutBtn.addEventListener('click', () => {
-                signOut(auth); // This will trigger onAuthStateChanged to clean everything up
+                showLogin();
             });
+
 
             // --- UI & NAVIGATION ---
             const pages = document.querySelectorAll('.page');
@@ -534,26 +664,82 @@
                 return timestamp.toDate().toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true });
             }
 
-            // --- RENDER FUNCTIONS ---
-            const renderProducts = () => {
+             // --- RENDER FUNCTIONS ---
+
+            function applyFiltersAndPagination(key, data) {
+                const searchTerm = document.getElementById(`${key}-search`)?.value.toLowerCase() || '';
+                FilteredDB[key] = data.filter(item => {
+                    return Object.values(item).some(val => 
+                        String(val).toLowerCase().includes(searchTerm)
+                    );
+                });
+
+                const { currentPage, itemsPerPage } = Pagination[key];
+                const start = (currentPage - 1) * itemsPerPage;
+                const end = start + itemsPerPage;
+                return FilteredDB[key].slice(start, end);
+            }
+
+            function renderPagination(key) {
+                const container = document.getElementById(`${key}-pagination`);
+                if (!container) return;
+
+                const totalItems = FilteredDB[key].length;
+                const { currentPage, itemsPerPage } = Pagination[key];
+                const totalPages = Math.ceil(totalItems / itemsPerPage);
+
+                if (totalPages <= 1) {
+                    container.innerHTML = '';
+                    return;
+                }
+
+                let buttonsHTML = '';
+                for (let i = 1; i <= totalPages; i++) {
+                    buttonsHTML += `<button data-page="${i}" class="pagination-btn-${key} px-3 py-1 rounded-md text-sm ${i === currentPage ? 'bg-indigo-600 text-white' : 'bg-white border'}">${i}</button>`;
+                }
+                container.innerHTML = buttonsHTML;
+            }
+
+            ['products', 'clients', 'orders'].forEach(key => {
+                document.getElementById(`${key}-pagination`)?.addEventListener('click', e => {
+                    if (e.target.matches(`.pagination-btn-${key}`)) {
+                        Pagination[key].currentPage = parseInt(e.target.dataset.page);
+                        window[`render${key.charAt(0).toUpperCase() + key.slice(1)}`]();
+                    }
+                });
+                 document.getElementById(`${key}-search`)?.addEventListener('input', () => {
+                    Pagination[key].currentPage = 1;
+                    window[`render${key.charAt(0).toUpperCase() + key.slice(1)}`]();
+                });
+            });
+
+            window.renderProducts = () => {
                 const table = document.getElementById('products-table');
-                table.innerHTML = DB.products.map(p => `
+                const paginatedData = applyFiltersAndPagination('products', DB.products);
+                
+                table.innerHTML = paginatedData.map(p => {
+                    const supplier = DB.suppliers.find(s => s.id === p.supplierId);
+                    return `
                     <tr class="border-b hover:bg-gray-50">
                         <td class="py-3 px-4">${p.name}</td>
-                        <td class="py-3 px-4 text-gray-500">${p.sku}</td>
                         <td class="py-3 px-4">${formatCurrency(p.price)}</td>
-                        <td class="py-3 px-4">${p.stock}</td>
+                        <td class="py-3 px-4">${formatCurrency(p.costPrice)}</td>
+                        <td class="py-3 px-4 ${p.stock <= 10 ? 'text-red-600 font-bold' : ''}">${p.stock}</td>
+                        <td class="py-3 px-4 text-gray-500">${supplier?.supplierName || 'N/A'}</td>
                         <td class="py-3 px-4">
                             <button class="edit-product-btn text-indigo-600 hover:text-indigo-900 mr-2" data-id="${p.id}">Edit</button>
                             <button class="delete-product-btn text-red-600 hover:text-red-900" data-id="${p.id}">Delete</button>
                         </td>
                     </tr>
-                `).join('') || `<tr><td colspan="5" class="text-center py-8 text-gray-500">No products found. Add one to get started.</td></tr>`;
+                `}).join('') || `<tr><td colspan="6" class="text-center py-8 text-gray-500">No products found.</td></tr>`;
+                renderPagination('products');
             };
 
-            const renderClients = () => {
+            window.renderClients = () => {
                 const table = document.getElementById('clients-table');
-                table.innerHTML = DB.clients.map(c => `
+                const paginatedData = applyFiltersAndPagination('clients', DB.clients);
+
+                table.innerHTML = paginatedData.map(c => `
                     <tr class="border-b hover:bg-gray-50">
                         <td class="py-3 px-4">${c.clientName}</td>
                         <td class="py-3 px-4 text-gray-500">${c.contactPerson}</td>
@@ -565,396 +751,184 @@
                         </td>
                     </tr>
                 `).join('') || `<tr><td colspan="5" class="text-center py-8 text-gray-500">No clients found.</td></tr>`;
+                renderPagination('clients');
             };
 
-            const renderOrders = () => {
+            window.renderOrders = () => {
                 const table = document.getElementById('all-orders-table');
-                const sortedOrders = [...DB.orders].sort((a,b) => b.createdAt.toMillis() - a.createdAt.toMillis());
-                table.innerHTML = sortedOrders.map(o => {
+                const sortedOrders = [...DB.orders].sort((a,b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
+                const paginatedData = applyFiltersAndPagination('orders', sortedOrders);
+
+                table.innerHTML = paginatedData.map(o => {
                     const client = DB.clients.find(c => c.id === o.clientId);
                     const statusColors = { Paid: 'bg-green-100 text-green-800', Unpaid: 'bg-yellow-100 text-yellow-800', Draft: 'bg-gray-100 text-gray-800' };
                     return `
                     <tr class="border-b hover:bg-gray-50">
-                        <td class="py-3 px-4 font-mono text-xs">${o.id}</td>
+                        <td class="py-3 px-4 font-mono text-xs">${o.id.substring(0, 8)}</td>
                         <td class="py-3 px-4">${client?.clientName || 'N/A'}</td>
                         <td class="py-3 px-4">${formatDate(o.createdAt)}</td>
                         <td class="py-3 px-4 font-semibold">${formatCurrency(o.total)}</td>
                         <td class="py-3 px-4"><span class="px-2 py-1 text-xs font-medium rounded-full ${statusColors[o.status] || ''}">${o.status}</span></td>
                         <td class="py-3 px-4">
-                            <button class="view-order-btn text-indigo-600 hover:text-indigo-900" data-id="${o.id}">View/Invoice</button>
+                            <button class="view-order-btn text-indigo-600 hover:text-indigo-900 mr-2" data-id="${o.id}">View/Invoice</button>
+                             <button class="delete-order-btn text-red-600 hover:text-red-900" data-id="${o.id}">Delete</button>
                         </td>
                     </tr>
                     `
                 }).join('') || `<tr><td colspan="6" class="text-center py-8 text-gray-500">No orders found.</td></tr>`;
+                renderPagination('orders');
             };
+
+            const renderSuppliers = () => {
+                 const table = document.getElementById('suppliers-table');
+                table.innerHTML = DB.suppliers.map(s => `
+                    <tr class="border-b hover:bg-gray-50">
+                        <td class="py-3 px-4">${s.supplierName}</td>
+                        <td class="py-3 px-4 text-gray-500">${s.contactPerson}</td>
+                        <td class="py-3 px-4 text-gray-500">${s.email}</td>
+                        <td class="py-3 px-4 text-gray-500">${s.phone}</td>
+                        <td class="py-3 px-4">
+                            <button class="edit-supplier-btn text-indigo-600 hover:text-indigo-900 mr-2" data-id="${s.id}">Edit</button>
+                            <button class="delete-supplier-btn text-red-600 hover:text-red-900" data-id="${s.id}">Delete</button>
+                        </td>
+                    </tr>
+                `).join('') || `<tr><td colspan="5" class="text-center py-8 text-gray-500">No suppliers found.</td></tr>`;
+            }
             
-            const renderDashboard = () => {
+             // --- DASHBOARD & REPORTING ---
+            let salesChartInstance, productsChartInstance;
+
+            function renderDashboard() {
                 const todayStart = new Date();
                 todayStart.setHours(0, 0, 0, 0);
 
-                const todaysOrders = DB.orders.filter(o => o.createdAt && o.createdAt.toDate() >= todayStart && o.status !== 'Draft');
+                const todaysOrders = DB.orders.filter(o => o.createdAt && o.createdAt.toDate() >= todayStart && o.status === 'Paid');
                 
-                const revenue = todaysOrders.filter(o => o.status === 'Paid').reduce((sum, o) => sum + o.total, 0);
+                const revenue = todaysOrders.reduce((sum, o) => sum + o.total, 0);
+                const profit = todaysOrders.reduce((sum, order) => {
+                    const orderProfit = order.items.reduce((itemSum, item) => {
+                        const product = DB.products.find(p => p.id === item.productId);
+                        const cost = product ? product.costPrice || 0 : 0;
+                        return itemSum + ((item.price - cost) * item.quantity);
+                    }, 0);
+                    return sum + orderProfit - order.discount;
+                }, 0);
+                
                 const outstanding = DB.orders.filter(o => o.status === 'Unpaid').reduce((sum, o) => sum + o.total, 0);
                 
                 document.getElementById('stat-revenue').textContent = formatCurrency(revenue);
-                document.getElementById('stat-outstanding').textContent = formatCurrency(outstanding);
+                document.getElementById('stat-profit').textContent = formatCurrency(profit);
                 document.getElementById('stat-orders').textContent = todaysOrders.length;
-                document.getElementById('stat-clients').textContent = DB.clients.length;
+                document.getElementById('stat-outstanding').textContent = formatCurrency(outstanding);
 
+                // Low Stock
+                const lowStockList = document.getElementById('low-stock-list');
+                const lowStockProducts = DB.products.filter(p => p.stock <= 10).sort((a,b) => a.stock - b.stock);
+                if (lowStockProducts.length > 0) {
+                    lowStockList.innerHTML = lowStockProducts.map(p => `
+                        <div class="flex justify-between items-center p-2 rounded-md bg-red-50">
+                            <span class="font-medium text-gray-700">${p.name}</span>
+                            <span class="font-bold text-red-600">${p.stock} left</span>
+                        </div>
+                    `).join('');
+                } else {
+                    lowStockList.innerHTML = `<p class="text-center text-gray-500 py-4">All products are well-stocked.</p>`;
+                }
+
+                // Recent Orders
                 const recentTable = document.getElementById('recent-orders-table');
-                const recentOrders = [...DB.orders].sort((a,b) => b.createdAt.toMillis() - a.createdAt.toMillis()).slice(0,5);
+                const recentOrders = [...DB.orders].sort((a,b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0)).slice(0,5);
                 recentTable.innerHTML = recentOrders.map(o => {
                      const client = DB.clients.find(c => c.id === o.clientId);
                      const statusColors = { Paid: 'bg-green-100 text-green-800', Unpaid: 'bg-yellow-100 text-yellow-800', Draft: 'bg-gray-100 text-gray-800' };
                      return `
                         <tr class="border-b hover:bg-gray-50">
-                            <td class="py-3 px-4 font-mono text-xs">${o.id}</td>
-                            <td class="py-3 px-4">${client?.clientName || 'N/A'}</td>
-                            <td class="py-3 px-4">${formatCurrency(o.total)}</td>
-                            <td class="py-3 px-4"><span class="px-2 py-1 text-xs font-medium rounded-full ${statusColors[o.status] || ''}">${o.status}</span></td>
-                            <td class="py-3 px-4">${formatDate(o.createdAt)}</td>
+                            <td class="py-2 px-4 font-mono text-xs">${o.id.substring(0,8)}</td>
+                            <td class="py-2 px-4">${client?.clientName || 'N/A'}</td>
+                            <td class="py-2 px-4">${formatCurrency(o.total)}</td>
+                            <td class="py-2 px-4"><span class="px-2 py-1 text-xs font-medium rounded-full ${statusColors[o.status] || ''}">${o.status}</span></td>
                         </tr>
                      `
-                }).join('') || `<tr><td colspan="5" class="text-center py-8 text-gray-500">No recent orders.</td></tr>`;
+                }).join('') || `<tr><td colspan="4" class="text-center py-8 text-gray-500">No recent orders.</td></tr>`;
+
+                renderSalesChart();
+                renderProductsChart();
             }
+             function renderSalesChart() {
+                const ctx = document.getElementById('sales-chart').getContext('2d');
+                const labels = Array.from({length: 7}, (_, i) => {
+                    const d = new Date();
+                    d.setDate(d.getDate() - i);
+                    return d.toLocaleDateString('en-US', { weekday: 'short' });
+                }).reverse();
 
-            const renderMessages = () => {
-                const chatBox = document.getElementById('chat-messages');
-                chatBox.innerHTML = DB.messages.map(msg => {
-                    const isMe = msg.user === loggedInUser;
-                    return `
-                        <div class="flex ${isMe ? 'justify-end' : 'justify-start'}">
-                            <div class="max-w-xs md:max-w-md">
-                                <div class="px-4 py-3 rounded-xl ${isMe ? 'chat-bubble-me' : 'chat-bubble-other'}">
-                                    <p class="text-sm">${msg.text}</p>
-                                </div>
-                                <p class="text-xs text-gray-400 mt-1 px-1 ${isMe ? 'text-right' : 'text-left'}">${msg.user} at ${formatTime(msg.timestamp)}</p>
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-                chatBox.scrollTop = chatBox.scrollHeight;
-            };
-
-            const renderGoals = () => {
-                const goalsList = document.getElementById('goals-list');
-                const sortedGoals = [...DB.goals].sort((a,b) => (a.status > b.status) ? 1 : -1);
-                goalsList.innerHTML = sortedGoals.map(goal => `
-                    <div class="flex items-center justify-between p-3 rounded-md ${goal.status === 'complete' ? 'bg-green-50' : 'bg-gray-100'}">
-                        <div class="flex items-center">
-                            <input type="checkbox" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 toggle-goal-status" data-id="${goal.id}" ${goal.status === 'complete' ? 'checked' : ''}>
-                            <label class="ml-3 block text-sm font-medium ${goal.status === 'complete' ? 'text-gray-500 line-through' : 'text-gray-900'}">${goal.text}</label>
-                        </div>
-                        <div class="flex items-center">
-                            <span class="text-xs text-gray-400 mr-4">by ${goal.user}</span>
-                            <button class="delete-goal-btn text-red-500 hover:text-red-700" data-id="${goal.id}">&times;</button>
-                        </div>
-                    </div>
-                `).join('') || `<p class="text-center py-4 text-gray-500">No goals set yet.</p>`;
-            };
-
-            const populateOrderFormSelects = () => {
-                const clientSelect = document.getElementById('order-client');
-                clientSelect.innerHTML = `<option value="">-- Choose a client --</option>` + DB.clients.map(c => `<option value="${c.id}">${c.clientName}</option>`).join('');
-                
-                const productSelect = document.getElementById('order-product');
-                productSelect.innerHTML = DB.products.map(p => `<option value="${p.id}">${p.name} (${p.stock} in stock)</option>`).join('');
-            };
-
-            // --- EVENT LISTENERS ---
-            // Products
-            document.getElementById('add-product-btn').addEventListener('click', () => {
-                const content = `<div class="space-y-4"><div><label class="block">Name</label><input type="text" name="name" required class="w-full mt-1 border-gray-300 rounded-md"></div><div><label class="block">SKU</label><input type="text" name="sku" class="w-full mt-1 border-gray-300 rounded-md"></div><div><label class="block">Price (₹)</label><input type="number" name="price" required min="0" step="0.01" class="w-full mt-1 border-gray-300 rounded-md"></div><div><label class="block">Stock Quantity</label><input type="number" name="stock" required min="0" class="w-full mt-1 border-gray-300 rounded-md"></div></div>`;
-                showModal('Add New Product', content, async (form) => {
-                    const newProduct = {
-                        name: form.name.value, sku: form.sku.value,
-                        price: parseFloat(form.price.value), stock: parseInt(form.stock.value),
-                    };
-                    await addDoc(collection(db, `artifacts/${appId}/public/data/products`), newProduct);
-                    showToast('Product added successfully.');
-                    return true;
-                });
-            });
-
-            document.getElementById('products-table').addEventListener('click', (e) => {
-                const id = e.target.dataset.id;
-                if (!id) return;
-
-                if (e.target.classList.contains('edit-product-btn')) {
-                    const product = DB.products.find(p => p.id === id);
-                    const content = `<div class="space-y-4"><div><label class="block">Name</label><input type="text" name="name" value="${product.name}" required class="w-full mt-1 border-gray-300 rounded-md"></div><div><label class="block">SKU</label><input type="text" name="sku" value="${product.sku}" class="w-full mt-1 border-gray-300 rounded-md"></div><div><label class="block">Price (₹)</label><input type="number" name="price" value="${product.price}" required min="0" step="0.01" class="w-full mt-1 border-gray-300 rounded-md"></div><div><label class="block">Stock Quantity</label><input type="number" name="stock" value="${product.stock}" required min="0" class="w-full mt-1 border-gray-300 rounded-md"></div></div>`;
-                    showModal('Edit Product', content, async (form) => {
-                        const updatedProduct = {
-                            name: form.name.value, sku: form.sku.value,
-                            price: parseFloat(form.price.value), stock: parseInt(form.stock.value)
-                        };
-                        await setDoc(doc(db, `artifacts/${appId}/public/data/products`, id), updatedProduct, { merge: true });
-                        showToast('Product updated.');
-                        return true;
-                    });
-                }
-                if (e.target.classList.contains('delete-product-btn')) {
-                    showConfirmationModal('Delete Product', 'Are you sure you want to delete this product?', async () => {
-                        await deleteDoc(doc(db, `artifacts/${appId}/public/data/products`, id));
-                        showToast('Product deleted.');
-                    });
-                }
-            });
-
-             // Clients
-            document.getElementById('add-client-btn').addEventListener('click', () => {
-                const content = `<div class="space-y-4"><div><label class="block">Client/Business Name</label><input type="text" name="clientName" required class="w-full mt-1 border-gray-300 rounded-md"></div><div><label class="block">Contact Person</label><input type="text" name="contactPerson" class="w-full mt-1 border-gray-300 rounded-md"></div><div><label class="block">Email</label><input type="email" name="email" class="w-full mt-1 border-gray-300 rounded-md"></div><div><label class="block">Phone</label><input type="tel" name="phone" class="w-full mt-1 border-gray-300 rounded-md"></div></div>`;
-                showModal('Add New Client', content, async (form) => {
-                    const newClient = {
-                        clientName: form.clientName.value, contactPerson: form.contactPerson.value,
-                        email: form.email.value, phone: form.phone.value
-                    };
-                    await addDoc(collection(db, `artifacts/${appId}/public/data/clients`), newClient);
-                    showToast('Client added successfully.');
-                    return true;
-                });
-            });
-
-             document.getElementById('clients-table').addEventListener('click', (e) => {
-                const id = e.target.dataset.id;
-                if (!id) return;
-                
-                if (e.target.classList.contains('edit-client-btn')) {
-                    const client = DB.clients.find(c => c.id === id);
-                    const content = `<div class="space-y-4"><div><label class="block">Client/Business Name</label><input type="text" name="clientName" value="${client.clientName}" required class="w-full mt-1 border-gray-300 rounded-md"></div><div><label class="block">Contact Person</label><input type="text" name="contactPerson" value="${client.contactPerson}" class="w-full mt-1 border-gray-300 rounded-md"></div><div><label class="block">Email</label><input type="email" name="email" value="${client.email}" class="w-full mt-1 border-gray-300 rounded-md"></div><div><label class="block">Phone</label><input type="tel" name="phone" value="${client.phone}" class="w-full mt-1 border-gray-300 rounded-md"></div></div>`;
-                    showModal('Edit Client', content, async (form) => {
-                        const updatedClient = {
-                            clientName: form.clientName.value, contactPerson: form.contactPerson.value,
-                            email: form.email.value, phone: form.phone.value
-                        };
-                        await setDoc(doc(db, `artifacts/${appId}/public/data/clients`, id), updatedClient, { merge: true });
-                        showToast('Client updated.');
-                        return true;
-                    });
-                }
-                if (e.target.classList.contains('delete-client-btn')) {
-                    showConfirmationModal('Delete Client', 'Are you sure you want to delete this client?', async () => {
-                        await deleteDoc(doc(db, `artifacts/${appId}/public/data/clients`, id));
-                        showToast('Client deleted.');
-                    });
-                }
-            });
-            
-            // New Order Form
-            let currentOrderItems = [];
-
-            const updateOrderSummary = () => {
-                const subtotal = currentOrderItems.reduce((sum, item) => sum + item.total, 0);
-                const discount = parseFloat(document.getElementById('order-discount').value) || 0;
-                const total = subtotal - discount;
-                
-                document.getElementById('order-subtotal').textContent = formatCurrency(subtotal);
-                document.getElementById('order-total').textContent = formatCurrency(total);
-            };
-
-            const renderCurrentOrderItems = () => {
-                const tableBody = document.getElementById('current-order-items');
-                tableBody.innerHTML = currentOrderItems.map((item, index) => `
-                    <tr class="border-b"><td class="py-2 px-2">${item.name}</td><td class="py-2 px-2">${item.quantity}</td><td class="py-2 px-2">${formatCurrency(item.price)}</td><td class="py-2 px-2">${formatCurrency(item.total)}</td><td class="py-2 px-2"><button type="button" class="remove-item-btn text-red-500" data-index="${index}">&times;</button></td></tr>
-                `).join('');
-                updateOrderSummary();
-            };
-            
-            document.getElementById('add-item-btn').addEventListener('click', () => {
-                const productId = document.getElementById('order-product').value;
-                const quantity = parseInt(document.getElementById('order-quantity').value);
-                const product = DB.products.find(p => p.id === productId);
-
-                if (!product || !quantity || quantity < 1) return;
-
-                const existingItem = currentOrderItems.find(item => item.productId === productId);
-                const totalQuantityNeeded = (existingItem ? existingItem.quantity : 0) + quantity;
-
-                if (totalQuantityNeeded > product.stock) {
-                    showToast(`Error: Only ${product.stock} units of ${product.name} available.`);
-                    return;
-                }
-
-                if (existingItem) {
-                    existingItem.quantity += quantity;
-                    existingItem.total = existingItem.quantity * existingItem.price;
-                } else {
-                    currentOrderItems.push({ productId: product.id, name: product.name, quantity: quantity, price: product.price, total: quantity * product.price });
-                }
-                renderCurrentOrderItems();
-            });
-            
-            document.getElementById('current-order-items').addEventListener('click', (e) => {
-                if(e.target.classList.contains('remove-item-btn')) {
-                    currentOrderItems.splice(parseInt(e.target.dataset.index), 1);
-                    renderCurrentOrderItems();
-                }
-            });
-            
-            document.getElementById('order-discount').addEventListener('input', updateOrderSummary);
-
-            const resetOrderForm = () => {
-                currentOrderItems = [];
-                document.getElementById('new-order-form').reset();
-                renderCurrentOrderItems();
-            }
-
-            document.getElementById('clear-order-btn').addEventListener('click', resetOrderForm);
-
-            document.getElementById('new-order-form').addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const clientId = e.target['order-client'].value;
-                const discount = parseFloat(e.target['order-discount'].value) || 0;
-                const status = e.target['order-status'].value;
-                
-                if(!clientId || currentOrderItems.length === 0) {
-                    showToast('Please select a client and add items to the order.');
-                    return;
-                }
-
-                const subtotal = currentOrderItems.reduce((sum, item) => sum + item.total, 0);
-                const total = subtotal - discount;
-
-                const newOrder = { clientId, items: currentOrderItems, subtotal, discount, total, status, createdAt: serverTimestamp(), createdBy: loggedInUser };
-                
-                const batch = writeBatch(db);
-                const orderRef = doc(collection(db, `artifacts/${appId}/public/data/orders`));
-                batch.set(orderRef, newOrder);
-
-                if (status !== 'Draft') {
-                    currentOrderItems.forEach(item => {
-                        const productRef = doc(db, `artifacts/${appId}/public/data/products`, item.productId);
-                        const product = DB.products.find(p => p.id === item.productId);
-                        const newStock = product.stock - item.quantity;
-                        batch.update(productRef, { stock: newStock });
-                    });
-                }
-                await batch.commit();
-
-                showToast(`Order created successfully with status: ${status}.`);
-                resetOrderForm();
-                window.location.hash = '#orders';
-            });
-
-            // View Order / Invoice
-            document.getElementById('all-orders-table').addEventListener('click', (e) => {
-                if(e.target.classList.contains('view-order-btn')) {
-                    const id = e.target.dataset.id;
-                    const order = DB.orders.find(o => o.id === id);
-                    const client = DB.clients.find(c => c.id === order.clientId);
-
-                    const itemsHTML = order.items.map(item => `<tr class="border-b"><td class="py-2">${item.name}</td><td class="py-2 text-center">${item.quantity}</td><td class="py-2 text-right">${formatCurrency(item.price)}</td><td class="py-2 text-right">${formatCurrency(item.total)}</td></tr>`).join('');
-                    const invoiceContent = `<div id="invoice-printable" class="p-8"><div class="flex justify-between items-start mb-8"><div><h1 class="text-3xl font-bold">Swadishth</h1><p class="text-gray-500">Your Business Address</p></div><div class="text-right"><h2 class="text-2xl font-semibold text-gray-800">INVOICE</h2><p class="text-gray-500">#${order.id}</p><p class="text-gray-500">Date: ${formatDate(order.createdAt)}</p></div></div><div class="mb-8"><h3 class="font-semibold mb-2">Bill To:</h3><p>${client.clientName}</p><p>${client.contactPerson || ''}</p><p>${client.email || ''}</p></div><table class="w-full mb-8"><thead class="bg-gray-100"><tr class="border-b"><th class="py-2 text-left">Item</th><th class="py-2 text-center">Qty</th><th class="py-2 text-right">Unit Price</th><th class="py-2 text-right">Total</th></tr></thead><tbody>${itemsHTML}</tbody></table><div class="flex justify-end"><div class="w-full max-w-xs space-y-2"><div class="flex justify-between"><span>Subtotal:</span><span>${formatCurrency(order.subtotal)}</span></div><div class="flex justify-between"><span>Discount:</span><span>-${formatCurrency(order.discount)}</span></div><div class="flex justify-between font-bold text-xl border-t pt-2"><span>Total:</span><span>${formatCurrency(order.total)}</span></div></div></div><div class="mt-8"><h4 class="font-semibold">Status: ${order.status}</h4></div><div class="mt-8 space-x-2"><label>Change Status:</label><select id="invoice-status-changer" data-order-id="${order.id}" class="rounded-md border-gray-300"><option value="Draft" ${order.status === 'Draft' ? 'selected':''}>Draft</option><option value="Unpaid" ${order.status === 'Unpaid' ? 'selected':''}>Unpaid</option><option value="Paid" ${order.status === 'Paid' ? 'selected':''}>Paid</option></select></div></div>`;
-                    
-                    showModal('Order Details & Invoice', invoiceContent, (form) => { return false; });
-                    
-                    document.querySelector('.modal-save-btn').textContent = 'Print Invoice';
-                    document.querySelector('.modal-form').onsubmit = (event) => {
-                        event.preventDefault();
-                        const printableArea = document.getElementById('invoice-printable').innerHTML;
-                        const originalContents = document.body.innerHTML;
-                        document.body.innerHTML = printableArea;
-                        window.print();
-                        document.body.innerHTML = originalContents;
-                        window.location.reload(); // Reload to re-initialize scripts
-                    };
-
-                    document.getElementById('invoice-status-changer').addEventListener('change', async (e) => {
-                        const newStatus = e.target.value;
-                        const orderId = e.target.dataset.orderId;
-                        await updateDoc(doc(db, `artifacts/${appId}/public/data/orders`, orderId), { status: newStatus });
-                        showToast(`Order #${orderId} status changed to ${newStatus}.`);
-                    });
-                }
-            });
-
-            // Team Hub Listeners
-            document.getElementById('new-message-form').addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const text = e.target.querySelector('#message-input').value;
-                if(text.trim()) {
-                    await addDoc(collection(db, `artifacts/${appId}/public/data/messages`), { user: loggedInUser, text: text.trim(), timestamp: serverTimestamp() });
-                    e.target.reset();
-                }
-            });
-
-            document.getElementById('new-goal-form').addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const text = e.target.querySelector('#goal-input').value;
-                if (text.trim()) {
-                    await addDoc(collection(db, `artifacts/${appId}/public/data/goals`), { user: loggedInUser, text: text.trim(), status: 'incomplete' });
-                    e.target.reset();
-                }
-            });
-
-            document.getElementById('goals-list').addEventListener('click', (e) => {
-                const id = e.target.dataset.id;
-                if (!id) return;
-                
-                if(e.target.classList.contains('toggle-goal-status')) {
-                    const newStatus = e.target.checked ? 'complete' : 'incomplete';
-                    updateDoc(doc(db, `artifacts/${appId}/public/data/goals`, id), { status: newStatus });
-                }
-                if(e.target.classList.contains('delete-goal-btn')) {
-                    showConfirmationModal('Delete Goal', 'Are you sure you want to delete this goal?', async () => {
-                        await deleteDoc(doc(db, `artifacts/${appId}/public/data/goals`, id));
-                        showToast('Goal deleted.');
-                    });
-                }
-            });
-
-
-            // --- FIRESTORE REAL-TIME LISTENERS ---
-            function setupRealtimeListeners() {
-                if (!firebaseUserId) return;
-                
-                unsubscribeListeners.forEach(unsub => unsub());
-                unsubscribeListeners = [];
-
-                 // --- Shared (public) data listeners ---
-                const publicCollections = ['products', 'clients', 'orders', 'messages', 'goals'];
-                publicCollections.forEach(col => {
-                    let q;
-                    if (col === 'messages') {
-                        q = query(collection(db, `artifacts/${appId}/public/data/${col}`), orderBy('timestamp', 'asc'));
-                    } else {
-                        q = query(collection(db, `artifacts/${appId}/public/data/${col}`));
-                    }
-                    
-                    const unsubscribe = onSnapshot(q, (snapshot) => {
-                        DB[col] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-                        switch(col) {
-                            case 'products':
-                                renderProducts();
-                                populateOrderFormSelects();
-                                break;
-                            case 'clients':
-                                renderClients();
-                                populateOrderFormSelects();
-                                renderDashboard();
-                                renderOrders();
-                                break;
-                            case 'orders':
-                                renderOrders();
-                                renderDashboard();
-                                break;
-                            case 'messages':
-                                renderMessages();
-                                break;
-                            case 'goals':
-                                renderGoals();
-                                break;
+                const salesData = Array(7).fill(0);
+                DB.orders.forEach(order => {
+                    if (order.createdAt && order.status === 'Paid') {
+                        const orderDate = order.createdAt.toDate();
+                        const today = new Date();
+                        const diffDays = Math.floor((today - orderDate) / (1000 * 60 * 60 * 24));
+                        if (diffDays >= 0 && diffDays < 7) {
+                            salesData[6 - diffDays] += order.total;
                         }
-                    }, (error) => {
-                        console.error(`Error fetching ${col}: `, error);
-                    });
-                    unsubscribeListeners.push(unsubscribe);
+                    }
+                });
+
+                if (salesChartInstance) salesChartInstance.destroy();
+                salesChartInstance = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels,
+                        datasets: [{
+                            label: 'Sales (₹)',
+                            data: salesData,
+                            backgroundColor: 'rgba(79, 70, 229, 0.8)',
+                            borderColor: 'rgba(79, 70, 229, 1)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: { scales: { y: { beginAtZero: true } } }
                 });
             }
 
+            function renderProductsChart() {
+                const ctx = document.getElementById('products-chart').getContext('2d');
+                const productSales = {};
+                DB.orders.filter(o => o.status === 'Paid').forEach(order => {
+                    order.items.forEach(item => {
+                        productSales[item.name] = (productSales[item.name] || 0) + item.quantity;
+                    });
+                });
+
+                const sortedProducts = Object.entries(productSales)
+                    .sort(([,a],[,b]) => b-a)
+                    .slice(0, 5);
+                
+                const labels = sortedProducts.map(([name]) => name);
+                const data = sortedProducts.map(([,qty]) => qty);
+
+                if (productsChartInstance) productsChartInstance.destroy();
+                productsChartInstance = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels,
+                        datasets: [{
+                            label: 'Quantity Sold',
+                            data,
+                            backgroundColor: [
+                                'rgba(79, 70, 229, 0.8)',
+                                'rgba(59, 130, 246, 0.8)',
+                                'rgba(16, 185, 129, 0.8)',
+                                'rgba(245, 158, 11, 0.8)',
+                                'rgba(239, 68, 68, 0.8)',
+                            ],
+                            hoverOffset: 4
+                        }]
+                    },
+                });
+            }
         });
     </script>
 </body>
 </html>
+
