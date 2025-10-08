@@ -48,6 +48,27 @@
             color: #1f2937; /* gray-800 */
             border-bottom-left-radius: 0;
         }
+        /* Print Styles */
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #invoice-printable, #invoice-printable * {
+                visibility: visible;
+            }
+            #invoice-printable {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                margin: 0;
+                padding: 0;
+            }
+            /* Hide modal-specific action buttons when printing */
+            #receipt-actions, #invoice-actions {
+                display: none !important;
+            }
+        }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-800">
@@ -323,22 +344,14 @@
     <script type="module">
         // Import Firebase modules
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signOut, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
         import { getFirestore, collection, onSnapshot, addDoc, doc, getDoc, setDoc, updateDoc, deleteDoc, query, where, orderBy, serverTimestamp, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
 
             // Your web app's Firebase configuration
-            const firebaseConfig = {
-                apiKey: "AIzaSyBRwSrbSvrFAW5dTyQN0BoRHS3_6iLrV_E",
-                authDomain: "homeworkbrothers-12345.firebaseapp.com",
-                projectId: "homeworkbrothers-12345",
-                storageBucket: "homeworkbrothers-12345.appspot.com",
-                messagingSenderId: "77683184454",
-                appId: "1:77683184454:web:9b0bc1e8e5028943a3cb47",
-                measurementId: "G-21XLQGRZJ0"
-            };
-            
+            const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+
             // Predefined users
             const USERS = {
                 sahil: 'sahil@swadishth',
@@ -355,8 +368,8 @@
             const db = getFirestore(app);
             
             let firebaseUserId = null;
-            let loggedInUser = null; // This will hold the custom username ('sahil', 'aryaveer', 'aryan')
-            let unsubscribeListeners = []; // To hold unsubscribe functions for cleanup on logout
+            let loggedInUser = null; 
+            let unsubscribeListeners = [];
 
             // --- STATE MANAGEMENT (local cache populated by Firestore) ---
             const DB = {
@@ -367,79 +380,84 @@
                 goals: [],
             };
             
-            // --- AUTHENTICATION ---
+            // --- UI Elements ---
             const loginScreen = document.getElementById('login-screen');
             const appScreen = document.getElementById('app');
             const loginForm = document.getElementById('login-form');
             const logoutBtn = document.getElementById('logout-btn');
 
-            // Firebase auth state change listener
+             // --- AUTHENTICATION ---
             onAuthStateChanged(auth, user => {
                 if (user) {
-                    firebaseUserId = user.uid; // We have an anonymous firebase user
-                    loggedInUser = localStorage.getItem('swadishth_loggedInUser'); // Check for our custom user
-
+                    firebaseUserId = user.uid; 
+                    loggedInUser = localStorage.getItem('swadishth_loggedInUser'); 
                     if (loggedInUser && USERS.hasOwnProperty(loggedInUser)) {
-                        // Both firebase auth and custom auth are present, setup the app
-                        loginScreen.style.display = 'none';
-                        appScreen.style.display = 'flex';
-                        document.getElementById('current-user').textContent = loggedInUser;
-                        setupRealtimeListeners();
-                        showPage(window.location.hash || '#dashboard');
+                        showApp();
                     } else {
-                        // If there's a lingering anonymous session without a custom login, sign out.
-                        signOut(auth);
+                        showLogin();
                     }
                 } else {
-                    // No firebase user, show login screen and clean up
-                    firebaseUserId = null;
-                    loggedInUser = null;
-                    localStorage.removeItem('swadishth_loggedInUser');
-                    loginScreen.style.display = 'flex';
-                    appScreen.style.display = 'none';
-                    unsubscribeListeners.forEach(unsubscribe => unsubscribe());
-                    unsubscribeListeners = [];
+                    showLogin();
                 }
             });
 
-
-            loginForm.addEventListener('submit', async (e) => {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (error) {
+                console.error("Firebase initial sign-in failed:", error);
+                const loginError = document.getElementById('login-error');
+                loginError.textContent = "Authentication service failed to initialize.";
+                loginError.classList.remove('hidden');
+                showLogin();
+            }
+            
+            loginForm.addEventListener('submit', (e) => {
                 e.preventDefault();
                 const username = e.target.username.value;
                 const password = e.target.password.value;
                 const loginError = document.getElementById('login-error');
                 loginError.classList.add('hidden');
                 
-                // Step 1: Validate against our predefined user list
                 if (USERS[username] === password) {
-                    // Step 2: Store the custom username
                     localStorage.setItem('swadishth_loggedInUser', username);
-                    
-                    // Step 3: Trigger Firebase anonymous sign-in.
-                    // The onAuthStateChanged listener will handle the rest.
-                    if (!auth.currentUser) {
-                        try {
-                            await signInAnonymously(auth);
-                        } catch (error) {
-                             console.error("Anonymous Sign In Error:", error);
-                             loginError.textContent = "Could not connect to the authentication service.";
-                             loginError.classList.remove('hidden');
-                             localStorage.removeItem('swadishth_loggedInUser');
-                        }
-                    } else {
-                        // If already signed in (e.g., from a failed custom login), just reload state
-                         location.reload(); 
-                    }
+                    showApp();
                 } else {
                     loginError.textContent = "Invalid username or password.";
                     loginError.classList.remove('hidden');
                 }
             });
+
+            function showApp() {
+                loggedInUser = localStorage.getItem('swadishth_loggedInUser');
+                if (!loggedInUser) {
+                    showLogin();
+                    return;
+                }
+                document.getElementById('current-user').textContent = loggedInUser;
+                loginScreen.style.display = 'none';
+                appScreen.style.display = 'flex';
+                setupRealtimeListeners();
+                showPage(window.location.hash || '#dashboard');
+            }
+
+            function showLogin() {
+                firebaseUserId = null;
+                loggedInUser = null;
+                localStorage.removeItem('swadishth_loggedInUser');
+                unsubscribeListeners.forEach(unsubscribe => unsubscribe());
+                unsubscribeListeners = [];
+                appScreen.style.display = 'none';
+                loginScreen.style.display = 'flex';
+            }
             
-            // Handle logout
             logoutBtn.addEventListener('click', () => {
-                signOut(auth); // This will trigger onAuthStateChanged to clean everything up
+                showLogin();
             });
+
 
             // --- UI & NAVIGATION ---
             const pages = document.querySelectorAll('.page');
@@ -569,13 +587,13 @@
 
             const renderOrders = () => {
                 const table = document.getElementById('all-orders-table');
-                const sortedOrders = [...DB.orders].sort((a,b) => b.createdAt.toMillis() - a.createdAt.toMillis());
+                const sortedOrders = [...DB.orders].sort((a,b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
                 table.innerHTML = sortedOrders.map(o => {
                     const client = DB.clients.find(c => c.id === o.clientId);
                     const statusColors = { Paid: 'bg-green-100 text-green-800', Unpaid: 'bg-yellow-100 text-yellow-800', Draft: 'bg-gray-100 text-gray-800' };
                     return `
                     <tr class="border-b hover:bg-gray-50">
-                        <td class="py-3 px-4 font-mono text-xs">${o.id}</td>
+                        <td class="py-3 px-4 font-mono text-xs">${o.id.substring(0, 8)}</td>
                         <td class="py-3 px-4">${client?.clientName || 'N/A'}</td>
                         <td class="py-3 px-4">${formatDate(o.createdAt)}</td>
                         <td class="py-3 px-4 font-semibold">${formatCurrency(o.total)}</td>
@@ -603,13 +621,13 @@
                 document.getElementById('stat-clients').textContent = DB.clients.length;
 
                 const recentTable = document.getElementById('recent-orders-table');
-                const recentOrders = [...DB.orders].sort((a,b) => b.createdAt.toMillis() - a.createdAt.toMillis()).slice(0,5);
+                const recentOrders = [...DB.orders].sort((a,b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0)).slice(0,5);
                 recentTable.innerHTML = recentOrders.map(o => {
                      const client = DB.clients.find(c => c.id === o.clientId);
                      const statusColors = { Paid: 'bg-green-100 text-green-800', Unpaid: 'bg-yellow-100 text-yellow-800', Draft: 'bg-gray-100 text-gray-800' };
                      return `
                         <tr class="border-b hover:bg-gray-50">
-                            <td class="py-3 px-4 font-mono text-xs">${o.id}</td>
+                            <td class="py-3 px-4 font-mono text-xs">${o.id.substring(0,8)}</td>
                             <td class="py-3 px-4">${client?.clientName || 'N/A'}</td>
                             <td class="py-3 px-4">${formatCurrency(o.total)}</td>
                             <td class="py-3 px-4"><span class="px-2 py-1 text-xs font-medium rounded-full ${statusColors[o.status] || ''}">${o.status}</span></td>
@@ -634,7 +652,9 @@
                         </div>
                     `;
                 }).join('');
-                chatBox.scrollTop = chatBox.scrollHeight;
+                if (chatBox.children.length > 0) {
+                    chatBox.scrollTop = chatBox.scrollHeight;
+                }
             };
 
             const renderGoals = () => {
@@ -661,6 +681,115 @@
                 const productSelect = document.getElementById('order-product');
                 productSelect.innerHTML = DB.products.map(p => `<option value="${p.id}">${p.name} (${p.stock} in stock)</option>`).join('');
             };
+            
+             // --- RECEIPT & INVOICE ---
+
+            function generateInvoiceHTML(order, client) {
+                const itemsHTML = order.items.map(item => `
+                    <tr class="border-b border-gray-200">
+                        <td class="py-3 pr-3">${item.name}</td>
+                        <td class="py-3 px-3 text-center">${item.quantity}</td>
+                        <td class="py-3 px-3 text-right">${formatCurrency(item.price)}</td>
+                        <td class="py-3 pl-3 text-right font-medium">${formatCurrency(item.total)}</td>
+                    </tr>
+                `).join('');
+
+                return `
+                    <div id="invoice-printable" class="p-6 sm:p-8 bg-white text-gray-800">
+                        <!-- Header -->
+                        <div class="flex justify-between items-start pb-6 border-b border-gray-200">
+                            <div>
+                                <h1 class="text-3xl font-bold text-gray-900">Swadishth Hub</h1>
+                                <p class="text-gray-500 mt-1">Sales Invoice</p>
+                            </div>
+                            <div class="text-right">
+                                <h2 class="text-xl font-semibold text-gray-700">Receipt</h2>
+                                <p class="text-gray-500 mt-1">#${order.id.substring(0,8)}</p>
+                                <p class="text-gray-500 mt-1">Date: ${formatDate(order.createdAt)}</p>
+                            </div>
+                        </div>
+                        
+                        <!-- Client Info -->
+                        <div class="py-6">
+                            <h3 class="font-semibold text-gray-600 mb-2">BILL TO:</h3>
+                            <p class="font-bold text-lg">${client.clientName}</p>
+                            ${client.contactPerson ? `<p class="text-gray-600">${client.contactPerson}</p>` : ''}
+                            ${client.email ? `<p class="text-gray-600">${client.email}</p>` : ''}
+                            ${client.phone ? `<p class="text-gray-600">${client.phone}</p>` : ''}
+                        </div>
+
+                        <!-- Items Table -->
+                        <table class="w-full mb-8">
+                            <thead class="bg-gray-50 text-gray-600 uppercase text-sm">
+                                <tr>
+                                    <th class="py-3 pr-3 text-left font-semibold">Item</th>
+                                    <th class="py-3 px-3 text-center font-semibold">Qty</th>
+                                    <th class="py-3 px-3 text-right font-semibold">Unit Price</th>
+                                    <th class="py-3 pl-3 text-right font-semibold">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>${itemsHTML}</tbody>
+                        </table>
+
+                        <!-- Totals -->
+                        <div class="flex justify-end">
+                            <div class="w-full max-w-xs space-y-3">
+                                <div class="flex justify-between text-gray-600">
+                                    <span>Subtotal</span>
+                                    <span>${formatCurrency(order.subtotal)}</span>
+                                </div>
+                                <div class="flex justify-between text-gray-600">
+                                    <span>Discount</span>
+                                    <span>-${formatCurrency(order.discount)}</span>
+                                </div>
+                                <div class="flex justify-between font-bold text-2xl text-gray-900 border-t border-gray-200 pt-3 mt-3">
+                                    <span>Grand Total</span>
+                                    <span>${formatCurrency(order.total)}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Footer -->
+                        <div class="mt-12 text-center text-gray-500 border-t border-gray-200 pt-6">
+                            <p class="font-semibold">Thank you for your business!</p>
+                            <p class="text-sm mt-1">Swadishth Hub | Kolkata, West Bengal</p>
+                        </div>
+                    </div>`;
+            }
+
+            function showReceiptModal(order, client) {
+                const receiptHTML = generateInvoiceHTML(order, client);
+                const modalContent = `
+                    ${receiptHTML}
+                    <div id="receipt-actions" class="p-4 bg-gray-50 border-t flex justify-end gap-4">
+                        <button type="button" class="modal-close-btn px-4 py-2 bg-white border border-gray-300 rounded-md">Close</button>
+                        <button type="button" id="print-receipt-btn" class="px-6 py-2 bg-indigo-600 text-white rounded-md">Print Receipt</button>
+                    </div>`;
+
+                const modalHTML = `
+                    <div class="modal-backdrop open fixed inset-0 z-30 flex items-center justify-center p-4">
+                        <div class="modal-content bg-white w-full max-w-2xl rounded-lg shadow-xl overflow-hidden">
+                            ${modalContent}
+                        </div>
+                    </div>`;
+                modalContainer.innerHTML = modalHTML;
+                const modalBackdrop = modalContainer.querySelector('.modal-backdrop');
+                
+                const closeModal = () => {
+                    modalBackdrop.classList.remove('open');
+                    setTimeout(() => {
+                        modalContainer.innerHTML = '';
+                        window.location.hash = '#orders'; // Navigate away after closing
+                    }, 300);
+                };
+                
+                modalContainer.querySelectorAll('.modal-close-btn').forEach(btn => btn.addEventListener('click', closeModal));
+                modalBackdrop.addEventListener('click', (e) => { if(e.target === modalBackdrop) closeModal(); });
+
+                document.getElementById('print-receipt-btn').addEventListener('click', () => {
+                    window.print();
+                });
+            }
 
             // --- EVENT LISTENERS ---
             // Products
@@ -815,12 +944,12 @@
 
                 const subtotal = currentOrderItems.reduce((sum, item) => sum + item.total, 0);
                 const total = subtotal - discount;
-
+                
+                const newOrderRef = doc(collection(db, `artifacts/${appId}/public/data/orders`));
                 const newOrder = { clientId, items: currentOrderItems, subtotal, discount, total, status, createdAt: serverTimestamp(), createdBy: loggedInUser };
                 
                 const batch = writeBatch(db);
-                const orderRef = doc(collection(db, `artifacts/${appId}/public/data/orders`));
-                batch.set(orderRef, newOrder);
+                batch.set(newOrderRef, newOrder);
 
                 if (status !== 'Draft') {
                     currentOrderItems.forEach(item => {
@@ -833,8 +962,11 @@
                 await batch.commit();
 
                 showToast(`Order created successfully with status: ${status}.`);
+                
+                const client = DB.clients.find(c => c.id === clientId);
+                const finalOrderForReceipt = { id: newOrderRef.id, ...newOrder, createdAt: { toDate: () => new Date() } }; 
+                showReceiptModal(finalOrderForReceipt, client);
                 resetOrderForm();
-                window.location.hash = '#orders';
             });
 
             // View Order / Invoice
@@ -843,28 +975,50 @@
                     const id = e.target.dataset.id;
                     const order = DB.orders.find(o => o.id === id);
                     const client = DB.clients.find(c => c.id === order.clientId);
+                    
+                    const invoiceHTML = generateInvoiceHTML(order, client);
 
-                    const itemsHTML = order.items.map(item => `<tr class="border-b"><td class="py-2">${item.name}</td><td class="py-2 text-center">${item.quantity}</td><td class="py-2 text-right">${formatCurrency(item.price)}</td><td class="py-2 text-right">${formatCurrency(item.total)}</td></tr>`).join('');
-                    const invoiceContent = `<div id="invoice-printable" class="p-8"><div class="flex justify-between items-start mb-8"><div><h1 class="text-3xl font-bold">Swadishth</h1><p class="text-gray-500">Your Business Address</p></div><div class="text-right"><h2 class="text-2xl font-semibold text-gray-800">INVOICE</h2><p class="text-gray-500">#${order.id}</p><p class="text-gray-500">Date: ${formatDate(order.createdAt)}</p></div></div><div class="mb-8"><h3 class="font-semibold mb-2">Bill To:</h3><p>${client.clientName}</p><p>${client.contactPerson || ''}</p><p>${client.email || ''}</p></div><table class="w-full mb-8"><thead class="bg-gray-100"><tr class="border-b"><th class="py-2 text-left">Item</th><th class="py-2 text-center">Qty</th><th class="py-2 text-right">Unit Price</th><th class="py-2 text-right">Total</th></tr></thead><tbody>${itemsHTML}</tbody></table><div class="flex justify-end"><div class="w-full max-w-xs space-y-2"><div class="flex justify-between"><span>Subtotal:</span><span>${formatCurrency(order.subtotal)}</span></div><div class="flex justify-between"><span>Discount:</span><span>-${formatCurrency(order.discount)}</span></div><div class="flex justify-between font-bold text-xl border-t pt-2"><span>Total:</span><span>${formatCurrency(order.total)}</span></div></div></div><div class="mt-8"><h4 class="font-semibold">Status: ${order.status}</h4></div><div class="mt-8 space-x-2"><label>Change Status:</label><select id="invoice-status-changer" data-order-id="${order.id}" class="rounded-md border-gray-300"><option value="Draft" ${order.status === 'Draft' ? 'selected':''}>Draft</option><option value="Unpaid" ${order.status === 'Unpaid' ? 'selected':''}>Unpaid</option><option value="Paid" ${order.status === 'Paid' ? 'selected':''}>Paid</option></select></div></div>`;
+                    const modalContent = `
+                        ${invoiceHTML}
+                        <div id="invoice-actions" class="p-4 bg-gray-50 border-t flex justify-between items-center flex-wrap gap-4">
+                            <div class="flex items-center space-x-2">
+                                <label class="text-sm font-medium">Change Status:</label>
+                                <select id="invoice-status-changer" data-order-id="${order.id}" class="rounded-md border-gray-300 shadow-sm text-sm p-2">
+                                    <option value="Draft" ${order.status === 'Draft' ? 'selected':''}>Draft</option>
+                                    <option value="Unpaid" ${order.status === 'Unpaid' ? 'selected':''}>Unpaid</option>
+                                    <option value="Paid" ${order.status === 'Paid' ? 'selected':''}>Paid</option>
+                                </select>
+                            </div>
+                            <div class="flex gap-4">
+                                <button type="button" class="modal-close-btn px-4 py-2 bg-white border border-gray-300 rounded-md">Close</button>
+                                <button type="button" id="print-invoice-btn" class="px-6 py-2 bg-indigo-600 text-white rounded-md">Print</button>
+                            </div>
+                        </div>`;
                     
-                    showModal('Order Details & Invoice', invoiceContent, (form) => { return false; });
-                    
-                    document.querySelector('.modal-save-btn').textContent = 'Print Invoice';
-                    document.querySelector('.modal-form').onsubmit = (event) => {
-                        event.preventDefault();
-                        const printableArea = document.getElementById('invoice-printable').innerHTML;
-                        const originalContents = document.body.innerHTML;
-                        document.body.innerHTML = printableArea;
-                        window.print();
-                        document.body.innerHTML = originalContents;
-                        window.location.reload(); // Reload to re-initialize scripts
+                    const modalHTML = `
+                        <div class="modal-backdrop open fixed inset-0 z-30 flex items-center justify-center p-4">
+                            <div class="modal-content bg-white w-full max-w-2xl rounded-lg shadow-xl overflow-hidden">
+                                ${modalContent}
+                            </div>
+                        </div>`;
+                    modalContainer.innerHTML = modalHTML;
+                    const modalBackdrop = modalContainer.querySelector('.modal-backdrop');
+                
+                    const closeModal = () => {
+                        modalBackdrop.classList.remove('open');
+                        setTimeout(() => modalContainer.innerHTML = '', 300);
                     };
+                    
+                    modalContainer.querySelectorAll('.modal-close-btn').forEach(btn => btn.addEventListener('click', closeModal));
+                    modalBackdrop.addEventListener('click', (ev) => { if(ev.target === modalBackdrop) closeModal(); });
 
-                    document.getElementById('invoice-status-changer').addEventListener('change', async (e) => {
-                        const newStatus = e.target.value;
-                        const orderId = e.target.dataset.orderId;
+                    document.getElementById('print-invoice-btn').addEventListener('click', () => window.print());
+
+                    document.getElementById('invoice-status-changer').addEventListener('change', async (ev) => {
+                        const newStatus = ev.target.value;
+                        const orderId = ev.target.dataset.orderId;
                         await updateDoc(doc(db, `artifacts/${appId}/public/data/orders`, orderId), { status: newStatus });
-                        showToast(`Order #${orderId} status changed to ${newStatus}.`);
+                        showToast(`Order #${orderId.substring(0,8)} status changed to ${newStatus}.`);
                     });
                 }
             });
@@ -912,7 +1066,6 @@
                 unsubscribeListeners.forEach(unsub => unsub());
                 unsubscribeListeners = [];
 
-                 // --- Shared (public) data listeners ---
                 const publicCollections = ['products', 'clients', 'orders', 'messages', 'goals'];
                 publicCollections.forEach(col => {
                     let q;
